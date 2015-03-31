@@ -1,0 +1,44 @@
+# Site settings
+title: <site titel>
+email: <email>
+author: <author>
+description: <site description>
+baseurl: "" 
+url: <site url>
+
+# Google analytics
+google_analytics: <google analytics id>
+
+# Disqus post comments
+# (leave blank to disable Disqus)
+disqus_shortname: <disqus shortname>
+
+# Social icons
+show_social_icons: false
+github_username: 
+stackoverflow_id:
+twitter_username: 
+google_plus_id:
+linkedin_username: 
+bitcoin_url:
+paypal_url:
+flattr_button:
+
+# Post sharing icons
+show_sharing_icons: false
+# Change to 'true' to enable individual icons
+share_facebook: false
+share_twitter: false
+share_googleplus: false
+share_linkedin: false
+share_digg: false
+share_tumblr: false
+share_reddit: false
+share_stumbleupon: false
+
+# Build settings
+markdown: kramdown
+permalink: :title
+paginate: 3
+sass:
+  compressed: true
