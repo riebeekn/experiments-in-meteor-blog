@@ -1,0 +1,14 @@
+.social-links,.share-links {
+	text-align: center;
+  padding-bottom: 10px;
+	
+	a {
+		padding-right: 10px;
+    text-decoration: none;
+    color: $gothic;
+    border: none;
+    &:hover {
+      color: $nobel;
+    }
+  }
+}

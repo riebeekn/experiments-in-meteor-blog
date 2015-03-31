@@ -1,0 +1,13 @@
+.highlight {
+	pre {
+		border: transparent;
+		background-color: $base03;
+		@include font-size(18);
+		word-wrap: normal;
+
+		code {
+			color: $nobel;
+			white-space: pre;
+		}
+	}
+}

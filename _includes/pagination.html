@@ -1,0 +1,19 @@
+<div class="pager row">
+  <div class="col-xs-12">
+  {% if paginator.previous_page %}
+    {% if paginator.page == 2 %}
+      <a href="{{ site.baseurl }}/">&larr;&nbsp;Newer articles</a>
+    {% else %}
+      <a href="{{ site.baseurl }}/page{{paginator.previous_page}}/">&larr;&nbsp;Newer articles</a>
+    {% endif %}
+  {% else %}
+    <a class="disabled">&larr;&nbsp;Newer articles</a>
+  {% endif %}
+
+  {% if paginator.next_page %}
+    <a href="{{ site.baseurl }}/page{{paginator.next_page}}/">Older articles&nbsp;&rarr;</a>
+  {% else %}
+    <a class="disabled">Older articles&nbsp;&rarr;</a>
+  {% endif %}
+</div>
+</div>

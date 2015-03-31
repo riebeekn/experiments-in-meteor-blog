@@ -1,0 +1,32 @@
+.pager {
+	a {
+		background: $gulf-stream;
+		color: $tuna !important;
+		letter-spacing: 1px;
+		font-weight: 600;
+		text-decoration: none ! important;
+		text-shadow: none;
+		text-transform: uppercase;
+		transition: all 0.3s ease-in-out 0s;
+		padding: 15px;
+		-webkit-transition: all 0.3s ease-in-out 0s;
+		&:hover {
+			color: $white !important;
+		}
+	}
+
+	.disabled {
+		background-color: $jungle-mist;
+		color: $white !important;
+	}
+}
+
+@media (max-width: 480px) { 
+	.pager {
+		a {
+			padding: 5px;
+		}
+	}        
+}
+
+

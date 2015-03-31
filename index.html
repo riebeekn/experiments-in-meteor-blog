@@ -1,0 +1,28 @@
+---
+layout: default
+---
+<div class="container-fluid">
+  <div class="animated fadeIn">
+    {% for post in paginator.posts %}
+      <article>
+        <div class="post-preview col-xs-10  no-gutter">
+          <h2><a href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a></h2>
+          <p class="meta">
+            {{ post.date | date: "%b %-d, %Y" }} / Read time: {{ post.content | reading_time }}
+          </p>
+
+          <p>
+            {% if post.summary %}
+              {{ post.summary }}
+            {% else %}
+              {{ post.excerpt }}
+            {% endif %}
+          </p>
+
+        </div>
+      </article>
+    {% endfor %}
+
+    {% include pagination.html %}
+  </div>
+</div>

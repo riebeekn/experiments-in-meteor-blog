@@ -1,0 +1,38 @@
+.meta {
+  @include clearfix;
+  margin-bottom: 0;
+  @include font-size(16);
+}
+
+blockquote {
+  @include font-size(24);
+  padding: 0 20px;
+}
+
+.pullquote {
+  text-align: center;
+  @include line-height(48);
+  @include font-size(38);
+  margin: 50px -5%;
+}
+
+.post {
+  padding: 30px 8%;
+  @include breakpoint(md) {
+    padding: 30px 14% 70px;
+  }
+
+  @include breakpoint(lg) {
+    padding: 30px 18% 170px;
+  }
+
+  h1 {
+    letter-spacing: -1pt;
+    @include breakpoint(sm) {
+      @include font-size(44);
+    }
+  }
+  h2 {
+    @include font-size(28);
+  }
+}
