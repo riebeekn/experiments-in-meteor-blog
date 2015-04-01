@@ -1,0 +1,9 @@
+.about {
+	img {
+		margin: 10px;
+	}
+
+	p {
+  	@include font-size(16);
+	}
+}
