@@ -28,11 +28,36 @@ blockquote {
 
   h1 {
     letter-spacing: -1pt;
+    color: $gothic;
     @include breakpoint(sm) {
-      @include font-size(44);
+      @include font-size(48);
     }
   }
+
   h2 {
-    @include font-size(28);
+    @include font-size(36);
+    color: $gothic;
+  }
+
+  h3 {
+    @include font-size(24);
+    color: $gothic;
+  }
+
+  h5 {
+    background: none repeat scroll 0% 0% $quill-grey;
+    color: $tuna;
+    @include font-size(14);
+    font-weight: 600;
+    padding: 10px 15px;
+    margin-bottom: 0px;
+    border-radius: 3px 3px 0px 0px;
+    word-wrap: break-word;
+  }
+
+  li {
+    @include font-size(18);
+    color: $gothic;
   }
 }
+

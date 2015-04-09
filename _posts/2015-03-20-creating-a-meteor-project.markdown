@@ -36,12 +36,16 @@ meteor my-first-project
 
 ####/client/templates/viewQuote.html
 
+
+<!-- :emphasize-lines: 3,5 -->
+<!-- :lines-emphasis: 6,13 -->
+
 {% highlight HTML %}
 <template name="viewQuote">
   <div class="view-quote">
     <div class="row">
       <div class="col-md-12">
-        <a id="showQuote" href="#" class="btn btn-primary btn-lg">Show me another quote!</a>
+        <a id="showQuote" href="#" class="btn btn-primary btn-lg">Show me another quote! {% raw %} {{quoteCount}} {% endraw %}</a>
       </div>
     </div>
   </div>
