@@ -5,9 +5,10 @@ $white: #fff;
 $gothic: #6da3a6;
 $gulf-stream: #8db7b9;
 $jungle-mist: #bed6d7;
+$bottom-spacing-pixels-to-apply: 15px;
 
 p {
-  margin-bottom: 30px;
+  padding-bottom: $bottom-spacing-pixels-to-apply;
   @include font-size(18);
   @include breakpoint(sm) {
     @include font-size(20);
@@ -16,6 +17,14 @@ p {
   @include breakpoint(md) {
     @include font-size(21);
   }
+}
+
+.highlight {
+  margin-bottom: $bottom-spacing-pixels-to-apply;
+}
+
+ul {
+  margin-bottom: $bottom-spacing-pixels-to-apply*2 !important;
 }
 
 .meta {
