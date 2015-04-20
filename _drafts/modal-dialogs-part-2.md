@@ -11,7 +11,7 @@ In this post we are going to take a look at how to use <a href="http://getbootst
 
 As a starting point, we're going to use a very simple existing Meteor app, if you want to start from scratch, see the <a href="/modal-dialogs-part-1/index.html" target="_blank">part 1</a>.
 
-If you'd rather skip directly to the code instead of following along, it's available on GitHub!!!PUT LINK HERE!!!
+If you'd rather skip directly to the code instead of following along, it's available on <a href="https://github.com/riebeekn/modal-dialogs-part-2" target="_blank">GitHub</a>.
 
 ##What we'll build
 To demonstrate working with modals we'll build out a very simple application that let's user's rank their favorite animals.  The main interface will look like:
