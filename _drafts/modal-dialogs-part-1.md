@@ -1,33 +1,33 @@
 ---
 layout:     post
-title:      Prequel - Using Bootstrap Modal Dialogs with Meteor
-summary: This post is a prequel to the 'Using Bootstrap Modal Dialogs with Meteor' post.  In this post we are going to build out the basic structure of our app.
+title:      Using Bootstrap Modal Dialogs with Meteor - Part 1
+summary: This post is a prequel to the 'Using Bootstrap Modal Dialogs with Meteor' post.  In this post we are going to build out the basic structure of the application, part 2 will deal with adding Modal Dialogs to the application.
 ---
-This post is a prequel to [Using Bootstrap Modal Dialogs with Meteor](/modal-dialogs/index.html).  We'll cover building the application from scratch and discuss a few details of the Meteor Framework.  If you already have experience with Meteor, you might want to go directly to [part 2.](/modal-dialogs/index.html)  On the other hand, if you have little or no experience with Meteor you may want to check out the official <a href="https://www.meteor.com/install" target="_blank">Meteor tutorial.</a>
+This post is a prequel to <a href="/modal-dialogs-part-2/index.html" target="_blanks">Using Bootstrap Modal Dialogs with Meteor</a>.  We'll cover building the application from scratch and discuss a few details of the Meteor Framework.  If you already have experience with Meteor, you might want to go directly to <a href="/modal-dialogs-part-2/index.html" target="_blanks">part 2</a>.  On the other hand, if you have little or no experience with Meteor you may want to check out the official <a href="https://www.meteor.com/install" target="_blank">Meteor tutorial</a>.
 
-If you'd rather grab the source code directly rather than follow along, it's available on GitHub at...... 
+If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/modal-dialogs-part-1" target="_blank">GitHub</a>.
 
 ##What we'll build
 We're going to create the next million dollar app!  A favorite animal ranking app (p.s. don't quit the day job just yet, I could be wrong about that million dollars part).
 
 With this post we will concentrate on the first iteration of the application...  we'll simply be building a page that contains a list of animals:
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/app.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/app.png" class="img-responsive" />
 
 ##Creating the app
 OK, let's get on the road to making that million dollars, first create a new Meteor application.
 
 #####Terminal
 {% highlight Bash %}
-meteor create fav-animals
+meteor create modal-dialogs
 {% endhighlight %}
 
 After Meteor has done it's thing let's get rid of the default files it created for us, as we won't be needing them.
 
 #####Terminal
 {% highlight Bash %}
-cd fav-animals
-rm fav-animals.*
+cd modal-dialogs
+rm modal-dialogs.*
 {% endhighlight %}
 
 Now we'll add a couple of packages to help us along our way:
@@ -50,7 +50,7 @@ meteor
 
 If we navigate to <a href="http://localhost:3000" target="_blank">localhost:3000</a>, we should see a default Iron Router message:
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/iron.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/iron.png" class="img-responsive" />
 
 This let's us know that our app is all set up and running A-OK.  Now it's time to start actually building it on out.
 
@@ -58,7 +58,7 @@ This let's us know that our app is all set up and running A-OK.  Now it's time t
 
 ###Adding some templates
 
-OK, let's start to add our UI and get rid of that Iron Router default page.  First we'll create a standard layout <a href="https://www.meteor.com/try/2" target="_blank">template</a> which will contain the head and body section of our HTML document.
+OK, let's start to add our UI and get rid of that Iron Router default page.  First we'll create a standard layout <a href="http://docs.meteor.com/#/basic/defining-templates" target="_blank">template</a> which will contain the head and body section of our HTML document.
 
 #####Terminal
 {% highlight Bash %}
@@ -71,7 +71,6 @@ touch client/templates/application/layout.html
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Favorite Animals</title>
-  <link rel="icon" sizes="16x16 32x32" href="/favicon.ico">
 </head>
 
 <template name="layout">
@@ -85,7 +84,7 @@ touch client/templates/application/layout.html
 
 Templates are pretty much just standard HTML but with a little bit of magic called <a href="http://meteorcapture.com/spacebars/" target="_blank">spacebars</a> added to make them more than just static files. 
 
-The layout template we've created is very simple and just sets up the basic structure of our app.  Note the "yield" statement in the `<body>`, this is where Iron Router will inject the contents for the different templates in our application.
+The layout template we've created is very simple and just sets up the basic structure of our app.  Note the "yield" statement in the `<body>` section, this is where Iron Router will inject the contents for the different templates in our application.
 
 Next we'll create the template to display our favorite animals.
 
@@ -133,11 +132,11 @@ Router.route('/', {
 
 Routing code is something we want available off the drop so we place our routing files in the /lib directory to ensure it is one of the first things to load on application start-up.
 
-The code itself, is pretty self explanatory, in the configuration section we're specifying our layout template as the application's layout, and we're creating a single route which serves up our animals template.
+The code itself, is pretty self explanatory, in the `Router.configure` section we're specifying our layout template as the application's layout, the `Router.route` section creates a single route which serves up our animals template.
 
 With the above in place, we should now see the contents of our animals template instead of the Iron Router default page.
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/app01.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/app01.png" class="img-responsive" />
 
 As exciting as the current page is, why don't we get some data in there to spice things up.
 
@@ -145,7 +144,7 @@ As exciting as the current page is, why don't we get some data in there to spice
 
 ###Adding a collection and some default data
 
-For our next step, we'll create some default animal data.  First we need to set up a <a href="https://www.meteor.com/try/3" target="_blank">collection</a> to store the animals, then create a fixture file to insert some animals.
+For our next step, we'll create some default animal data.  First we need to set up a <a href="http://docs.meteor.com/#/basic/Mongo-Collection" target="_blank">collection</a> to store the animals, then create a fixture file to insert some animals.
 
 #####Terminal
 {% highlight Bash %}
@@ -183,9 +182,9 @@ We want the collection available to both the client and server so the /lib folde
 
 The code is pretty simple, the collection code just creates a collection to store our animals, as for the fixture file, it's also straight-forward, we're hard-coding some data to insert.  Note, we've added a "rank" column to the Animal records so they can be ordered when displayed.
 
-Now that we've added data, we should be able to view the data directly in a web client console by querying the Animals collection:
+Now that we've added data, we should be able to view the data directly in a web client console by querying the Animals collection, for instance with Chrome we can do the following (open the console with command-option-i):
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/data.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/data.png" class="img-responsive" />
 
 Nice, we've got data!  But hmm, that doesn't seem so secure allowing any old web client to connect directly to our database, is Meteor inherently insecure?  <a href="https://www.discovermeteor.com/blog/meteor-and-security/" target="_blank">Nope!</a>  Let's batten down the hatches!
 
@@ -194,13 +193,13 @@ Nice, we've got data!  But hmm, that doesn't seem so secure allowing any old web
 meteor remove insecure autopublish
 {% endhighlight %}
 
-Now we've locked out our browser from accessing our database... phew!
+Now if we attempt to fetch our animals again in our browser, we'll get no results.  We've locked out our browser from accessing our database... phew!
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/data-secure.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/data-secure.png" class="img-responsive" />
 
 To double-check that the data is still present, you can fire up <a href="http://robomongo.org/" target="_blank">Robomongo</a> and connect to port 3001 (the default port Mongo runs under with Meteor):
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/robomongo.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/robomongo.png" class="img-responsive" />
 
 An even better option, is to add the <a href="https://github.com/msavin/Mongol" target="_blank">Mongol</a> package, a clever little package that let's you browse your database from the browser when Meteor is running in debug mode (which by default it does when you fire up Meteor locally).  What's great about this package is you don't need to worry about removing it when pushing your app to production.  Meteor will automatically remove it for you, see <a href="https://github.com/msavin/Mongol/blob/master/documentation/SECURITY.md" target="_blank">here</a> for details and some caveats.
 
@@ -213,11 +212,11 @@ meteor add msavin:mongol
 
 Hmm, where did our Animals go?
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/no-animals.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/no-animals.png" class="img-responsive" />
 
 Clicking on the "Subscriptions" tab of Mongol gives a hint of what the problem is.
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/no-subs.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/no-subs.png" class="img-responsive" />
 
 No sight of our animals anywhere!  Now that we've removed the <a href="https://atmospherejs.com/meteor/autopublish" target="_blank">autopublish</a> package we're going to need to manually <a href="http://meteortips.com/tutorial/publish-subscribe-autopublish/" target="_blank">publish and subscribe</a> to our data.
 
@@ -238,7 +237,7 @@ Meteor.publish('animals', function() {
 
 We're returning all our animals in our publication, which happens to be exactly what was happening when we had autopublish enabled, now we're just explicitly exposing all our animals.  In general, publications would scope the data being returned to the client for both performance and data security reasons (i.e. to only display data accessible to the current user).  In our simple Animals application all users see and share the same data however, so we're just returning everything in the publication.
 
-Next step is to subscribe to the data on the client, we'll accomplish this with Iron Router.
+The next step is to subscribe to the data on the client, we'll accomplish this with Iron Router.
 
 #####/lib/router.js
 {% highlight JavaScript %}
@@ -259,9 +258,9 @@ Router.route('/', {
 });
 {% endhighlight %}
 
-With all that in place we see our animals are showing up, and Mongol also shows that we are subscribing to our animals publication... perfect!
+With all that in place we see our animals are showing up in Mongol, and Mongol also shows that we are subscribing to our animals publication... perfect!
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/subs.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/subs.png" class="img-responsive" />
 
 Nothing much is happening in our actual application yet however, let's update the UI to display those animals!
 
@@ -328,7 +327,7 @@ We'll hook into our `animal.html` template from our `animals.html` template.  Th
 One bit of Meteor magic in the above code is the passing of the data context from the parent `animals.html` template down to the child `animal.html` template.  Meteor is smart enough to know that when you render the animal template from within the `{% raw %}{{#each animals}}{% endraw %}` block that the current animal record should be passed as the data context to the animal template.  This is why in the `animal.html` template we can display the name of the animal simply with `{% raw %}{{name}}{% endraw %}`.  Check out this excellent <a href="https://www.discovermeteor.com/blog/a-guide-to-meteor-templates-data-contexts/" target="_blank">post</a> for a further explanation of data contexts.
 
 ###Deleting Animals
-The last thing we're going to do is add the ability for user's to delete animals.  In [part 2](/modal-dialogs/index.html) we'll tackle adding and editing animals.
+The last thing we're going to do is add the ability for user's to delete animals.  In <a href="/modal-dialogs-part-2/index.html" target="_blanks">part 2</a> we'll tackle adding and editing animals.
 
 Let's update our animal template to include a delete link.
 
@@ -388,7 +387,7 @@ Template.animal.events({
 
 Give it a try and you'll get a clue as to the next step:
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/no-method.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/no-method.png" class="img-responsive" />
 
 Makes sense, we need to define the delete method on the server... so let's get on that!  We'll add our delete method to the existing animals collection.
 
@@ -405,9 +404,9 @@ Meteor.methods({
 
 Now with our delete method in place, we can delete animals to our heart's content.  Once all our animals have been deleted, the "no animals" message will appear.
 
-<img src="../images/posts/prequel-using-bootstrap-modals-in-meteor/no-animals-ui.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-1/no-animals-ui.png" class="img-responsive" />
 
 ##Summary
-Phew, working with all these animals is exhausting!  In [part two](/modal-dialogs/index.html) we'll hook up our add button, figure out how user's can edit existing animals and let them re-order their animals to reflect which animal is the very best of them all.
+Phew, working with all these animals is exhausting!  In <a href="/modal-dialogs-part-2/index.html" target="_blanks">part 2</a> we'll hook up our add button, figure out how user's can edit existing animals and let them re-order their animals to reflect which animal is the very best of them all.
 
 Thanks for reading!

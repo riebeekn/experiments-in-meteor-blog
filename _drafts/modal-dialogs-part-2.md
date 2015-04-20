@@ -1,37 +1,49 @@
 ---
 layout:     post
-title:      Using Bootstrap Modal Dialogs with Meteor
+title:      Using Bootstrap Modal Dialogs with Meteor - Part 2
 summary: In this post we are going to take a look at how to use Bootstrap Modals in conjunction with Meteor...
 ---
-In this post we are going to take a look at how to use Bootstrap Modals in conjunction with Meteor. The main things we'll cover are:
+In this post we are going to take a look at how to use <a href="http://getbootstrap.com/javascript/#modals" target="_blank">Bootstrap Modals</a> in conjunction with Meteor. The main things we'll cover are:
 
 * How to set-up a bootstrap modal to work with Meteor.
 * How to use a 3rd party package to make working with bootstrap modals easier.
 * And finally, although not related to modals, we'll figure out how to create lists which can be sorted by our user's.
 
-As a starting point, we're going to use an existing Meteor app, if you want to start from scratch, see the prequel [to this post.](/modal-dialogs-prequel/index.html)
+As a starting point, we're going to use a very simple existing Meteor app, if you want to start from scratch, see the <a href="/modal-dialogs-part-1/index.html" target="_blank">part 1</a>.
 
-If you'd rather grab the source code directly rather than follow along, it's available on GitHub at...... 
+If you'd rather skip directly to the code instead of following along, it's available on GitHub!!!PUT LINK HERE!!!
 
 ##What we'll build
 To demonstrate working with modals we'll build out a very simple application that let's user's rank their favorite animals.  The main interface will look like:
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/app.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/app.png" class="img-responsive" />
 
 User's can add more animals via the "add" button, which will bring up a modal:
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/modal.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/modal.png" class="img-responsive" />
 
 ##Creating the app
 As a starting point, we'll clone a partially implemented version of the application from GitHub.  This partial implementation has the list of animals implemented and working delete links.  We'll need to implement the add, edit and ranking functionality.
 
+###Clone the Repo
+Note, if you aren't famliar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs-part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
+
 #####Terminal
 {% highlight Bash %}
-git clone ???
-cd fav-animals
+git clone https://github.com/riebeekn/modal-dialogs-part-1.git modal-dialogs-part-2
+cd modal-dialogs-part-2
 {% endhighlight %}
 
-After cloning the repo, start up Meteor.
+###A quick over-view of where we're starting from
+If you open the code in your text editor of choice, you'll see a pretty standard file structure.
+
+<img src="../images/posts/modal-dialogs-part-2/project-structure.png" class="img-responsive" />
+
+The `animals.html` template is the core template for the application, with `animal.html` being responsible for the rendering of single animal records.
+
+We'll primarily be changing / adding code in the `/client/templates/animals` folder, in addition, we'll make some changes to `/lib/collections/animals.js`.  
+
+###Start up the app
 
 #####Terminal
 {% highlight Bash %}
@@ -46,7 +58,7 @@ You should now see the application render when you pointing your browser to <a h
 
 The first thing we'll work on is to implement the "Add" button functionality.  If you click the "Delete" links you'll notice it's possible to remove animals from the list of favorites, but there is currently no way to add new animals, that won't do!
 
-First step is to create our modal template and include it as part of the existing `animals.html` template.  We embed the modal template within the animals template as the modal needs to be rendered as part of the animals template in order for it to open successfully.  Including the modal as part of the animals template is not ideal, we'd rather put it in it's own template file.  Later in this post we'll make use of a third party meteor library that will allow us to do just that.
+First step is to create our modal template and include it as part of the existing `animals.html` template.  We embed the modal template within the animals template as the modal needs to be rendered as part of the animals template in order for it to open successfully.  Including the modal as part of the animals template is not ideal, we'd rather put it in it's own template file.  Later in this post we'll make use of a third party Meteor library that will allow us to do just that... but for now:
 
 #####/client/templates/animals/animals.html
 {% highlight HTML %}
@@ -81,12 +93,16 @@ First step is to create our modal template and include it as part of the existin
 </template>
 {% endhighlight %}
 
-OK, nothing special about the `animalsModalTemplate`, it's a standard Bootstrap modal.  The key thing to make a note of is the `{% raw %}{{> animalsModalTemplate}}{% endraw %}` tag we've added to the `animals` template.  As mentioned earlier, unless we render the modal as part of the main template it won't appear when we try to open it.
+OK, nothing special about the `animalsModalTemplate`, it's a standard <a href="http://getbootstrap.com/javascript/#modals" target="_blank">Bootstrap modal</a>.  The key thing to note is the `{% raw %}{{> animalsModalTemplate}}{% endraw %}` tag we've added to the `animals` template.  As mentioned earlier, unless we render the modal as part of the main template it won't appear when we try to open it.
 
-So with the HTML in place, let's hook in the event handler for the "Add" button.
+So with the HTML in place, let's add an event handler to `animals.js`.
 
 #####/client/templates/animals/animals.js
 {% highlight JavaScript %}
+// ...
+// existing code
+//...
+
 Template.animals.events({
   'click #add': function(e) {
     e.preventDefault();
@@ -98,7 +114,7 @@ Template.animals.events({
 
 After the above changes, the modal will appear when the "Add" button is clicked.
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/modal.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/modal.png" class="img-responsive" />
 
 ###Saving new animals
 So we now have our Modal showing up, and although the "Cancel" button works out of the gate, the "Save" button is currently nothing but an empty promise.  Let's fix that!
@@ -107,6 +123,10 @@ First we'll capture the Save button event.
 
 #####/client/templates/animals/animals.js
 {% highlight JavaScript %}
+// ...
+// existing code
+//...
+
 Template.animalsModalTemplate.events({
   'click #save': function(e) {
     e.preventDefault();
@@ -126,9 +146,9 @@ Template.animalsModalTemplate.events({
 });
 {% endhighlight %}
 
-Pretty simple, we're grabbing the value entered in the animal name text box and then calling a Meteor method on the server.  Of course, we have yet to implement the server method, so we'll currently see an error if we try adding an animal.
+Pretty simple, we're grabbing the value entered in the name text box and then calling a Meteor method on the server.  Of course, we have yet to implement the server method, so we'll currently see an error if we try adding an animal.
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/no-method.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/no-method.png" class="img-responsive" />
 
 OK, so let's get rid of that no method error by... you guessed it, implementing the method. 
 
@@ -158,14 +178,14 @@ Luckily there is a Meteor package we can use to split out our Modal from our oth
 meteor add peppelg:bootstrap-3-modal
 {% endhighlight %}
 
-Now we'll move our modal template code out of `animals.html`.
+Now we'll move our modal template code out of `animals.html` into it's own file.
 
 #####Terminal
 {% highlight Bash %}
 touch client/templates/animals/animals-modal.html
 {% endhighlight %}
 
-#####client/templates/animals/animals-modal.html
+#####/client/templates/animals/animals-modal.html
 {% highlight HTML %}
 <template name="animalsModal">
   <div class="modal fade">
@@ -217,7 +237,7 @@ Now, let's change `animals.html`.
 
 The file is now much cleaner, also notice we no longer need to render our modal template in the animals template, i.e. the `{% raw %}{{> animalModalTemplate}}{% endraw %}` line has been removed.
 
-OK with those changes, out of the way, if you click the Add button you'll notice nothing happens.  This is because we need to call our modal in a different manner, so let's get that sorted.  We'll also move the modal specific code into it's own file just like we did with the HTML templates.
+OK with those changes, out of the way, if you click the Add button you'll notice nothing happens.  This is because we need to call our modal in a different manner, so let's get that sorted.  We'll also move the modal specific code out of `animals.js` into it's own file just like we did with the template code.
 
 #####Terminal
 {% highlight Bash %}
@@ -268,17 +288,17 @@ Template.animals.events({
 
 We've removed the save animals event handling code and changed up our code that opens the Modal to use the package, `Modal.show('animalsModal');`.
 
-And with that, we've finished our refactoring.  Next step is to implement edit.
+And with that, we've finished our refactoring and the Add button is back to a working state.  Next step is to implement edit.
 
 ##Editing animals
 As you can see below, I've got a typo with my newly added animal.
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/spelling.png" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/spelling.png" class="img-responsive" />
 
 I could delete and re-add my Donkey... but that seems a little awkward, so let's get some editing up and running.  
 
 ###Altering the UI to support editing
-First off let's add an edit link to `animals.html`.
+First off let's add an edit link to `animal.html`.
 
 #####/client/templates/animals/animal.html
 {% highlight HTML %}
@@ -306,13 +326,13 @@ Template.animal.events({
 
 Easy as pie... not!  The above code opens up the modal but the existing animal name isn't showing up.
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/missing-value.png" class="img-responsive" /> 
+<img src="../images/posts/modal-dialogs-part-2/missing-value.png" class="img-responsive" /> 
 
 Essentially we need our modal to handle two modes, "Add"... when a user adds a new animal, and "Edit"... when a user is editing an existing animal.
 
-When the modal dialog opens in edit mode we need to populate the modal with the details of the current animal under edit.  We'll accomplish this by setting a <a href="https://www.meteor.com/try/8" target="_blank">session</a> variable that will contain our animal id.  If the id is empty we'll know the modal has been opened in create mode.  
+When the modal dialog opens in edit mode we need to populate the modal with the details of the current animal under edit.  We'll accomplish this by setting a <a href="http://docs.meteor.com/#/basic/session" target="_blank">Session</a> variable that will contain our animal id.  If the id is empty we'll know the modal has been opened in create mode.  
 
-**Note:** session variables are handy but should be used with caution as they can quickly become hard to manage and keep track of if you are storing a bunch of things in session variables.
+**Note:** Session variables are handy but should be used with caution as they have the same drawbacks associated with traditional global variables.
 
 In any case let's make our changes.
 
@@ -326,6 +346,8 @@ In any case let's make our changes.
     ModalHelper.openModalFor(animalId);
   },
   'click #delete': function(e) {
+  ...
+  ...
 {% endhighlight %}
 
 #####/client/templates/animals/animal.html
@@ -407,7 +429,7 @@ Template.animalsModal.events({
 
 Firstly we've updated the animal helper to fetch the current animal record when in "Edit" mode, i.e. when the Session variable is populated.  Next we update the save method to call different methods on the server depending on whether an add or an update is occurring.
 
-Finally in `animals-modal.html` we set the value of the animal name text box.  This way it will be blank if it's a new instance, but populated for when an edit is under way.
+Finally we need to update `animals-modal.html` to set the value of the animal name text box.  This way it will be blank if it's a new instance, but populated when an edit is under way:
 
 #####/client/templates/animals/animals-modal.html
 {% highlight HTML %}
@@ -420,7 +442,23 @@ Finally in `animals-modal.html` we set the value of the animal name text box.  T
           <input type="text" id="animalName" value={% raw %}{{animal.name}}{% endraw %} />
         </div>
     ...
+    ...
 {% endhighlight %}
+
+Oops, I lied, one more small edit is required in `animals.js`.
+
+#####/client/templates/animals/animals.js
+{% highlight JavaScript %}
+Template.animals.events({
+  'click #add': function(e) {
+    e.preventDefault();
+
+    ModalHelper.openModalFor(null);
+  }
+});
+{% endhighlight %}
+
+In the 'add' event handling code we need to call the ModalHelper method we created and pass `null` as the animal id.  If we fail to do this the Modal will contain the name of the last edited animal when it opens, as our `selectedAnimalId` Session variable will still be set.
 
 So that is the client side code, but we're calling into a non-existent server method, 'editAnimal', so let's code that up.
 
@@ -446,7 +484,7 @@ We've now got our modal working the way we want both when adding new animals and
 ##Ranking animals
 The final step is to allow user's to rank the animals via drag and drop.  For instance Dogs and Donkeys definitely need to come before Cats:
 
-<img src="../images/posts/using-bootstrap-modals-in-meteor/re-order.gif" class="img-responsive" />
+<img src="../images/posts/modal-dialogs-part-2/re-order.gif" class="img-responsive" />
 
 We'll accomplish the above with the help of the drag and drop functionality included in jQuery UI.
 
@@ -500,6 +538,10 @@ Template.animals.rendered = function() {
     }
   })
 }
+
+// ...
+// existing helper and event handling code
+// ...
 {% endhighlight %}
 
 Now all we need to do is implement the `updateAnimalRank` method on the server.
