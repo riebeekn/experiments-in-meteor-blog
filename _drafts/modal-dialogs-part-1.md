@@ -101,7 +101,7 @@ touch client/templates/animals/animals.html
 </template>
 {% endhighlight %}
 
-You'll notice we're creating our templates in a "client" directory.  Meteor let's you put your files wherever you want but it does have a few special directories to be aware of.
+You'll notice we're creating our templates in a `/client` directory.  Meteor let's you put your files wherever you want but it does have a few special directories to be aware of.
 
 * /client - any files located in this directory will only be run on the client.
 * /server - any files located in this directory will only be run on the server.
@@ -130,7 +130,7 @@ Router.route('/', {
 });
 {% endhighlight %}
 
-Routing code is something we want available off the drop so we place our routing files in the /lib directory to ensure it is one of the first things to load on application start-up.
+Routing code is something we want available off the drop so we place our routing files in the `/lib` directory to ensure it is one of the first things to load on application start-up.
 
 The code itself, is pretty self explanatory, in the `Router.configure` section we're specifying our layout template as the application's layout, the `Router.route` section creates a single route which serves up our animals template.
 
@@ -178,11 +178,11 @@ if (Animals.find().count() === 0) {
 }
 {% endhighlight %}
 
-We want the collection available to both the client and server so the /lib folder is a good place for it.  The fixture file only needs to run on the server so it gets placed in the /server directory.
+We want the collection available to both the client and server so the `/lib` folder is a good place for it.  The fixture file only needs to run on the server so it gets placed in the `/server` directory.
 
 The code is pretty simple, the collection code just creates a collection to store our animals, as for the fixture file, it's also straight-forward, we're hard-coding some data to insert.  Note, we've added a "rank" column to the Animal records so they can be ordered when displayed.
 
-Now that we've added data, we should be able to view the data directly in a web client console by querying the Animals collection, for instance with Chrome we can do the following (open the console with command-option-i):
+Now that we've added data, we should be able to view the data directly in a web client console by querying the Animals collection, for instance with Chrome we can do the following (open the console with `command-option-i`).
 
 <img src="../images/posts/modal-dialogs-part-1/data.png" class="img-responsive" />
 
@@ -303,7 +303,7 @@ touch client/templates/animals/animal.html
 
 Here we've added a spacebars directive to display the name of the current animal record.
 
-We'll hook into our `animal.html` template from our `animals.html` template.  This can be done by looping over the data in the animals template and rendering the animal template for each record, essentially setting up a parent child relationship between the templates.
+We'll hook into our `animal.html` template from the `animals.html` template.  This can be done by looping over the data in the animals template and rendering the animal template for each record, essentially setting up a parent child relationship between the templates.
 
 #####/client/templates/animals/animals.html
 {% highlight HTML %}

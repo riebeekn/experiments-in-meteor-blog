@@ -9,7 +9,7 @@ In this post we are going to take a look at how to use <a href="http://getbootst
 * How to use a 3rd party package to make working with bootstrap modals easier.
 * And finally, although not related to modals, we'll figure out how to create lists which can be sorted by our user's.
 
-As a starting point, we're going to use a very simple existing Meteor app, if you want to start from scratch, see the <a href="/modal-dialogs-part-1/index.html" target="_blank">part 1</a>.
+As a starting point, we're going to use a very simple existing Meteor app, if you want to start from scratch, see <a href="/modal-dialogs-part-1/index.html" target="_blank">part 1</a>.
 
 If you'd rather skip directly to the code instead of following along, it's available on <a href="https://github.com/riebeekn/modal-dialogs-part-2" target="_blank">GitHub</a>.
 
@@ -23,7 +23,7 @@ User's can add more animals via the "add" button, which will bring up a modal:
 <img src="../images/posts/modal-dialogs-part-2/modal.png" class="img-responsive" />
 
 ##Creating the app
-As a starting point, we'll clone a partially implemented version of the application from GitHub.  This partial implementation has the list of animals implemented and working delete links.  We'll need to implement the add, edit and ranking functionality.
+As a starting point, we'll clone a partially implemented version of the application from GitHub.  This partial implementation has the list of animals implemented and the ability to delete animals.  We'll need to implement the add, edit and ranking functionality.
 
 ###Clone the Repo
 Note, if you aren't famliar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs-part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
