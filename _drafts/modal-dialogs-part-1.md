@@ -5,7 +5,7 @@ summary: This post is a prequel to the 'Using Bootstrap Modal Dialogs with Meteo
 ---
 This post is a prequel to <a href="/modal-dialogs-part-2/index.html" target="_blanks">Using Bootstrap Modal Dialogs with Meteor</a>.  We'll cover building the application from scratch and discuss a few details of the Meteor Framework.  If you already have experience with Meteor, you might want to go directly to <a href="/modal-dialogs-part-2/index.html" target="_blanks">part 2</a>.  On the other hand, if you have little or no experience with Meteor you may want to check out the official <a href="https://www.meteor.com/install" target="_blank">Meteor tutorial</a>.
 
-If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/modal-dialogs-part-1" target="_blank">GitHub</a>.
+If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/modal-dialogs/tree/part-1" target="_blank">GitHub</a>.
 
 ##What we'll build
 We're going to create the next million dollar app!  A favorite animal ranking app (p.s. don't quit the day job just yet, I could be wrong about that million dollars part).

@@ -11,7 +11,7 @@ In this post we are going to take a look at how to use <a href="http://getbootst
 
 As a starting point, we're going to use a very simple existing Meteor app, if you want to start from scratch, see <a href="/modal-dialogs-part-1/index.html" target="_blank">part 1</a>.
 
-If you'd rather skip directly to the code instead of following along, it's available on <a href="https://github.com/riebeekn/modal-dialogs-part-2" target="_blank">GitHub</a>.
+If you'd rather skip directly to the code instead of following along, it's available on <a href="https://github.com/riebeekn/modal-dialogs/tree/master" target="_blank">GitHub</a>.
 
 ##What we'll build
 To demonstrate working with modals we'll build out a very simple application that let's user's rank their favorite animals.  The main interface will look like:
@@ -26,12 +26,12 @@ User's can add more animals via the "add" button, which will bring up a modal:
 As a starting point, we'll clone a partially implemented version of the application from GitHub.  This partial implementation has the list of animals implemented and the ability to delete animals.  We'll need to implement the add, edit and ranking functionality.
 
 ###Clone the Repo
-Note, if you aren't famliar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs-part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
+Note, if you aren't famliar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs/tree/part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
 
 #####Terminal
 {% highlight Bash %}
-git clone https://github.com/riebeekn/modal-dialogs-part-1.git modal-dialogs-part-2
-cd modal-dialogs-part-2
+git clone https://github.com/riebeekn/modal-dialogs.git#part-1.git
+cd modal-dialogs
 {% endhighlight %}
 
 ###A quick over-view of where we're starting from
@@ -101,7 +101,7 @@ So with the HTML in place, let's add an event handler to `animals.js`.
 {% highlight JavaScript %}
 // ...
 // existing code
-//...
+// ...
 
 Template.animals.events({
   'click #add': function(e) {
@@ -125,7 +125,7 @@ First we'll capture the Save button event.
 {% highlight JavaScript %}
 // ...
 // existing code
-//...
+// ...
 
 Template.animalsModalTemplate.events({
   'click #save': function(e) {
@@ -449,6 +449,10 @@ Oops, I lied, one more small edit is required in `animals.js`.
 
 #####/client/templates/animals/animals.js
 {% highlight JavaScript %}
+// ...
+// existing code
+// ...
+
 Template.animals.events({
   'click #add': function(e) {
     e.preventDefault();
