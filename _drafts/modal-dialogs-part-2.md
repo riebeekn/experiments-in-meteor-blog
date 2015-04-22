@@ -30,7 +30,7 @@ Note, if you aren't famliar with Git and / or don't have it installed you can do
 
 #####Terminal
 {% highlight Bash %}
-git clone https://github.com/riebeekn/modal-dialogs.git#part-1.git
+git clone -b part-1 https://github.com/riebeekn/modal-dialogs.git
 cd modal-dialogs
 {% endhighlight %}
 
