@@ -26,7 +26,7 @@ User's can add more animals via the "add" button, which will bring up a modal:
 As a starting point, we'll clone a partially implemented version of the application from GitHub.  This partial implementation has the list of animals implemented and the ability to delete animals.  We'll need to implement the add, edit and ranking functionality.
 
 ###Clone the Repo
-Note, if you aren't famliar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs/tree/part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
+Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/modal-dialogs/tree/part-1" target="_blank">here</a>.  Otherwise let's git started (you can steal that joke if you want, it works great on dates... OK, maybe not so much).
 
 #####Terminal
 {% highlight Bash %}

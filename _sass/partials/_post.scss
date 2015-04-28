@@ -44,6 +44,11 @@ blockquote {
     color: $gothic;
   }
 
+  h4 {
+    @include font-size(21);
+    color: $gothic;
+  }
+
   h5 {
     background: none repeat scroll 0% 0% $quill-grey;
     color: $tuna;
