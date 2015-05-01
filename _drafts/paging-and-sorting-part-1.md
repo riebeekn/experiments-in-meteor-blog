@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      Paging and Sorting in Meteor - Part 1
-summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In this post we'll see how we can implement Paging in Meteor.  In part two we will look at sorting.
+summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In this post we'll see how we can implement paging in Meteor.  In part two we will look at sorting.
 ---
 In this post we are going to take a look at how to page data in Meteor, in part 2 we'll also add sorting.
 

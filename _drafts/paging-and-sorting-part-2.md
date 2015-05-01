@@ -33,306 +33,15 @@ meteor
 
 You should now see the starting point for our application when you navigate your browser to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>.
 
+#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/app-starting-point.png" class="img-responsive" />
 
 ##Adding sorting
 
-###Updating the UI
+###Updating the table headers
 The first thing we'll do to is to update the UI.  We'll switch out the table headers with links.
 
-#STOPPED
-
 #####/client/templates/customers/listCustomers.html
-{% highlight HTML %}
-{% endhighlight %}
-
-
-###Fake it until you make it
-So obviously our buttons don't do anything yet, let's start out by coming up with a simplified implementation just to get a basic working example, we'll then refactor it to something more appropriate.
-
-We know in our customers publication we're going to want to do two things:
-
-* Restrict the number of records returned.
-* Skip the first "x" records depending on what page is being displayed.
-
-So let's update our publication to do the above.
-
-#####/server/publications.js
-{% highlight JavaScript %}
-Meteor.publish('customers', function(skipCount) {
-  return Customers.find({}, {
-    limit: 3, // records to show per page
-    skip: skipCount
-  });
-});
-{% endhighlight %}
-
-With the above change, you'll now see only the first 3 records being returned.
-
-We're hard-coding the number of records to return to 3, with the `limit: 3` parameter in the `find()` call.  The skip value is the number of records to skip over and is determined by the `skipCount` parameter we'll pass to the function.  Since we aren't passing anything in as the `skipCount` currently, the value of `skipCount` will be 'undefined' and therefore no records will be skipped over.
-
-We can easily pass in a `skipCount` and have what is shown determined by our page parameter by changing the subscription our router.
-
-#####/lib/router/customer-routes.js
-{% highlight JavaScript %}
-Router.route('/:page?', {  
-  name: 'listCustomers',
-  waitOn: function() {
-    var currentPage = parseInt(this.params.page) || 1; 
-    var skipCount = (currentPage - 1) * 3; // 3 records per page     
-    return Meteor.subscribe('customers', skipCount);  
-  }
-});
-...
-...
-{% endhighlight %}
-
-What we've done is add some additional logic to our `waitOn` function.  First we calculate the current page.  We grab the current page from the URL if it's present in the URL otherwise we default to the first page.
-
-The skip count is determined by taking the zero-based index (i.e. if we're on the first page, the zero based index for that page is 0) and multiplying it by the number of records to display per page.
-
-We can now switch the page manually by entering a page number into the URL.  Without a page number or when the page number is "1" the first page is displayed, entering "2" displays the second page, and anything larger than 2 is going to display an empty table as we only have 6 records in our database.
-
-<img src="../images/posts/paging-and-sorting-part-1/manual-page.gif" class="img-responsive" />
-
-OK, so not a bad job of faking it!  Paging is working we just need to get it hooked up to the next and previous buttons.  
-
-Before doing so, let's perform a small refactoring, hard-coding the number of records to display per page (i.e. 3) in the code doesn't seem like the best idea.  There are a number of approaches we could take to handle this, the option we'll go with is to place the value in a `settings.json` file.
-
-#####Terminal
-{% highlight Bash %}
-touch settings.json
-{% endhighlight %}
-
-#####/setting.json
-{% highlight JavaScript %}
-{
-  "public": {
-    "recordsPerPage" : "3"
-  }
-}
-{% endhighlight %}
-
-Since we need to access the number of records per page on both the client and server we need to create a public settings entry.
-
-In order for Meteor to pick up the settings value, we'll need to restart Meteor and point to the settings file.
-
-#####Terminal
-{% highlight Bash %}
-meteor --settings settings.json
-{% endhighlight %}
-
-With all that taken care of we'll replace our hard-coded values in both the router and the publication.
-
-#####/lib/router/customer-routes.js
-{% highlight JavaScript %}
-Router.route('/:page?', {  
-  name: 'listCustomers',
-  waitOn: function() {
-    var currentPage = parseInt(this.params.page) || 1; 
-    var skipCount = (currentPage - 1) * Meteor.settings.public.recordsPerPage;....
-    ...
-{% endhighlight %}
-
-#####/server/publications.js
-{% highlight JavaScript %}
-Meteor.publish('customers', function(skipCount) {
-  return Customers.find({}, {
-    limit: parseInt(Meteor.settings.public.recordsPerPage),
-    skip: skipCount
-  });
-});
-{% endhighlight %}
-
-###No more faking
-As much fun as it is to type page numbers into the URL, I think we're going to want to get those buttons working... so let's get to it!
-
-####Setting the button link values
-If we look at our `list-customers.html` template we've already got a <a href="http://docs.meteor.com/#/full/spacebars" target="_blank">spacebars</a> directive set-up for the links.
-
-#####/client/templates/customers/list-customers.html
-{% highlight HTML %}
-...
-...
-<a id="prevPage" href="{% raw %}{{prevPage}}{% endraw %}">
-...
-...
-<a id="nextPage" href="{% raw %}{{nextPage}}{% endraw %}">
-...
-...
-{% endhighlight %}
-
-So we just need to create helpers to fill in those values.
-
-#####/client/templates/customers/list-customers.js
-{% highlight JavaScript %}
-Template.listCustomers.helpers({
-  customers: function() {
-    return Customers.find();
-  },
-  prevPage: function() {
-    var currentPage = parseInt(Router.current().params.page || 1);
-    var previousPage = currentPage === 1 ? 1 : currentPage - 1;
-    return Router.routes.listCustomers.path({page: previousPage});
-  },
-  nextPage: function() {
-    var currentPage = parseInt(Router.current().params.page || 1);
-    var nextPage = currentPage + 1;
-    return Router.routes.listCustomers.path({page: nextPage});
-  }
-});
-...
-...
-{% endhighlight %}
-
-Let's look at the `prevPage` function, so the first thing we do when calculating the URL for the previous page is to calculate the current page from the URL, i.e. `Router.current().params.page`.  If there is not page parameter in the URL we default to 1.
-
-Next we assign `previousPage` to the current page minus 1... unless of course the current page is the first page in which case there is no previous page so we set `previousPage` to 1.
-
-Lastly we return the listCustomers route passing in the previous page to the page parameter.  Pretty simple!
-
-The next page is even simpler we just add 1 to the current page value... but you can probably guess where this implementation falls down.
-
-<img src="../images/posts/paging-and-sorting-part-1/page-too-far.gif" class="img-responsive" />
-
-Hmm, we can just keep on paging past the point where we have any records to display, that won't do!
-
-We're going to need a count of the total records in order to determine whether the next button should move onto a next page or stay where it is.  We also need the count to be <a href="http://docs.meteor.com/#/full/reactivity" target="_blank">reactive</a> as if one user is adding records while another is viewing records we want the count to update so that the viewing user is able to see the new records.
-
-Luckily there is a great <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> that will help us along with this.
-
-#####Terminal
-{% highlight Bash %}
-meteor add tmeasday:publish-counts
-{% endhighlight %}
-
-With the publish-counts package added we can make use of it in our publication.
-
-#####/server/publications.js
-{% highlight JavaScript %}
-Meteor.publish('customers', function(skipCount) {
-  Counts.publish(this, 'customerCount', Customers.find(), { 
-    noReady: true
-  });
-
-  return Customers.find({}, {
-    limit: parseInt(Meteor.settings.public.recordsPerPage),
-    skip: skipCount
-  });
-});
-{% endhighlight %}
-
-Pretty neat, right inside our `customers` publication we can publish the count.  The `noReady` flag indicates that there is more data being sent down the line in the publication than just the count.  The <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> documentation contains more details.
-
-OK, so our publication is all set, let's update our next link helper to take advantage of our newly acquired count.
-
-#####/client/templates/customers/list-customers.js
-{% highlight JavaScript %}
-var hasMorePages = function() {
-  var currentPage = parseInt(Router.current().params.page || 1);
-  var totalCustomers = Counts.get('customerCount');
-  return currentPage * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
-}
-
-Template.listCustomers.helpers({
-...
-...
-  nextPage: function() {
-    var currentPage = parseInt(Router.current().params.page || 1);
-    var nextPage = hasMorePages() ? currentPage + 1 : currentPage;
-    return Router.routes.listCustomers.path({page: nextPage});
-  }
-});
-...
-...
-{% endhighlight %}
-
-We've created a `hasMorePages` function that we call from within the `nextPage` function.  If we have more pages we increment the page number otherwise we stay where we are.
-
-`hasMorePages` is pretty straight-forward, we're just checking whether the current page multiplied by the number of items per page is less than the total number of customer records.  If it is we know we've got more records.
-
-Now, if you try to navigate past the 2nd page you won't be able to.
-
-####What's that smell?
-Before getting too excited, we're seeing some code smells leak into our implementation.  The code that determines the `currentPage` appears in a bunch of places in `list-customers.js`, and it even appears in `customer-routes.js`.
-
-We're going to want to tighten that up and ensure this logic appears in only one place.  We're going to make use of a route controller and define the logic in the route, and reference it in the helpers.
-
-So first let's refactor the router.
-
-#####/lib/router/customer-routes.js
-{% highlight JavaScript %}
-CustomersListController = RouteController.extend({  
-  template: 'listCustomers',  
-  currentPage: function() {     
-    return parseInt(this.params.page) || 1;  
-  },
-  subscriptions: function() {
-    var skipCount = (this.currentPage() - 1) 
-      * parseInt(Meteor.settings.public.recordsPerPage)
-    this.customersSub = Meteor.subscribe('customers', skipCount);  
-  },
-  data: function() {
-    return {        
-      ready: this.customersSub.ready,
-      currentPage: this.currentPage()
-    };  
-  }
-});
-
-Router.route('/:page?', {  
-  name: 'listCustomers',  
-  controller: CustomersListController
-});
-
-Router.route('/customer/add', {
-  name: 'addCustomer'
-});
-{% endhighlight %}
-
-We're now defining our current page function in the route controller and returning it in the `data` section of the controller so that it is accessible in the helpers.  We're also handling our wait indicator a little differently by returning a ready flag.
-
-We can now update `list-customers.js`.
-
-#####/client/templates/customers/list-customers.js
-{% highlight JavaScript %}
-var hasMorePages = function() {
-  var totalCustomers = Counts.get('customerCount');
-  return Router.current().currentPage() 
-    * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
-}
-
-
-Template.listCustomers.helpers({
-  customers: function() {
-    return Customers.find();
-  },
-  prevPage: function() {
-    var previousPage = Router.current().currentPage() === 1 
-      ? 1 : Router.current().currentPage() - 1;
-    return Router.routes.listCustomers.path({page: previousPage});
-  },
-  nextPage: function() {
-    var nextPage = hasMorePages() 
-      ? Router.current().currentPage() + 1 : Router.current().currentPage();
-    return Router.routes.listCustomers.path({page: nextPage});
-  }
-});
-
-Template.listCustomers.events({
-  'click #btnAddCustomer': function(e) {
-    e.preventDefault();
-
-    Router.go('addCustomer', {page: Router.current().params.page});
-  }
-});
-{% endhighlight %}
-
-Nothing special going on here, we've just replaced the locally calculated current page functions with the router function, i.e. `Router.current().currentPage()`.
-
-The last thing to update is `list-customers.html`, we need it to take into account our ready state.
-
-#####/client/templates/customers/list-customers.html
 {% highlight HTML %}
 <template name="listCustomers">
   <div class="row">
@@ -345,62 +54,465 @@ The last thing to update is `list-customers.html`, we need it to take into accou
     {{> spinner}}      
   {{/unless}}{% endraw %}
   <table class="table">
+    <thead>
+      <tr>
+        <th>
+          <a id="firstName" href="#">First name</a>
+        </th>
+        <th>
+          <a id="lastName" href="#">Last name</a>
+        </th>
+        <th>
+          <a id="email" href="#">Email</a>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% raw %}{{#each customers}}{% endraw %}
+      ...
+      ...
+{% endhighlight %}
+
+OK, nothing complicated there, before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  
+
+###Updating the publication and subscription
+
+OK, so let's update our publication first off.
+
+#####/server/publications.js
+{% highlight JavaScript %}
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+
+  var sortParams = {};
+  sortParams[sortField] = sortDirection;
+  return Customers.find({}, {
+    limit: parseInt(Meteor.settings.public.recordsPerPage),
+    skip: skipCount,
+    sort: sortParams
+  });
+});
+{% endhighlight %}
+
+Nothing too crazy, we're just passing two additional parameters to our publication and updating the find call to take the new parameters into account.
+
+Let's check out our app:
+
+<img src="../images/posts/paging-and-sorting-part-2/no-worky.gif" class="img-responsive" />
+
+That's no good, but expected, we need to update our subscription to include the two new parameters, let's hard-code some values for now.
+
+Let's have a quick look at our database records via <a href="https://github.com/msavin/Mongol" target="_blank">Mongol</a>.
+
+#####Terminal
+{% highlight Bash %}
+meteor add msavin:mongol
+{% endhighlight %}
+
+After the package is installed hitting control-m in the browser will bring up Mongol.  We can see that we've got 4 fields in our customer records and the column names are slightly different from what we are displaying in the UI.
+
+<img src="../images/posts/paging-and-sorting-part-2/mongol.png" class="img-responsive" />
+
+Let's get our app back working by hard-coding some values into our subscription, how about we go with the surname.
+
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+CustomersListController = RouteController.extend({  
+  template: 'listCustomers',  
+  currentPage: function() {     
+    return parseInt(this.params.page) || 1;  
+  },
+  subscriptions: function() {
+    var skipCount = (this.currentPage() - 1) 
+      * parseInt(Meteor.settings.public.recordsPerPage)
+    this.customersSub = Meteor.subscribe('customers', skipCount, "surname", 1);  
+  },
+{% endhighlight %}
+
+After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
+
+#REPLACE
+<img src="../images/posts/paging-and-sorting-part-2/sort-by-email.png" class="img-responsive" />
+
+###An issue
+Hmm, I'm getting bored having only 6 customers in our database, how about we add a new customer via the `Add Customer` button.
+
+<img src="../images/posts/paging-and-sorting-part-2/add-new.png" class="img-responsive" />
+
+Awesome, we have a new customer... but hey what is up with the sort order?  Our newly added customer is way back on the last page.
+
+<img src="../images/posts/paging-and-sorting-part-2/bad-sort-order.png" class="img-responsive" />
+
+Well turns out Mongo does not support <a href="http://stackoverflow.com/questions/22931177/mongo-db-sorting-with-case-insensitive" target="_blank">case insensitive sorting</a>, and uppercase words will always come prior to lowercase words when sorted.  Holy smokes, what are we going to do?
+
+###A solution
+Turns out a common pattern when needing to sort on String columns in Mongo is to duplicate a lowercased version of the field for the purpose of sorting.  Coming from a traditional database background, this seems a little strange, but that's just the way it's done in Mongo, denormalization and duplication is common.
+
+So how can we accomplish this in our application?  There's a package for that (well sort of)!
+
+We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow use to automatically create lower-cased versions of our String fields on insert.  Let's seem how it all looks.
+
+#####Terminal
+{% highlight Bash %}
+meteor add aldeed:collection2
+{% endhighlight %}
+
+Now we'll create a <a href="https://github.com/aldeed/meteor-collection2#attaching-a-schema-to-a-collection" target="_blank">schema</a> to our customer collection.
+
+#####Terminal
+{% highlight Bash %}
+mkdir lib/schemas
+touch lib/schemas/customers.js
+{% endhighlight %}
+
+#####/lib/schemas/customers.js
+{% highlight JavaScript %}
+Customers.attachSchema(new SimpleSchema({
+  name: {
+    type: String
+  },
+
+  name_sort: {
+    type: String,
+    optional: true,
+    autoValue: function() {
+      var name = this.field("name");
+      if (name.isSet) {
+        return name.value.toLowerCase();
+      } else {
+        this.unset(); // Prevent user from supplying her own value
+      }
+    }
+  },
+ 
+  surname: {
+    type: String
+  },
+
+  surname_sort: {
+    type: String,
+    optional: true,
+    autoValue: function() {
+      var surname = this.field("surname");
+      if (surname.isSet) {
+        return surname.value.toLowerCase();
+      } else {
+        this.unset(); // Prevent user from supplying her own value
+      }
+    }
+  },
+
+  email: {
+    type: String,
+    autoValue: function() {
+      return this.value.toLowerCase(); // store emails as lower-case
+    }
+  }
+})); 
+{% endhighlight %}
+
+In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` field to assign the value of our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.
+
+We'll want to reset our app so that our fixture data gets the new auto value data.  So stop and re-start the meteor server.
+
+#####Terminal
+{% highlight Bash %}
+meteor reset
+meteor --settings settings.json
+{% endhighlight %}
+
+And now re-adding Bob d'Arnaud, puts him in the right place after we make a small change to our subscription.
+
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+CustomersListController = RouteController.extend({  
+  template: 'listCustomers',  
+  currentPage: function() {     
+    return parseInt(this.params.page) || 1;  
+  },
+  subscriptions: function() {
+    var skipCount = (this.currentPage() - 1) 
+      * parseInt(Meteor.settings.public.recordsPerPage)
+    this.customersSub = Meteor.subscribe('customers', skipCount, "surname_sort", 1);  
+  },
   ...
   ...
 {% endhighlight %}
 
-All we're doing here is over-laying a spinner icon over the table when the subscription has not yet loaded.
+There we go, Bob is now where he belongs.
 
-####Setting the button classes
-It would be nice to give the user a visual cue when they've reached the first or last page of records so let's accomplish that by changing up the class of the next and previous buttons when appropriate.
+<img src="../images/posts/paging-and-sorting-part2/good-sort.png" class="img-responsive" />
 
-We already added our spacebar directives for the classes earlier:
-
-#####/client/templates/customers/list-customers.html
-{% highlight HTML %}
-...
-<li class="{{prevPageClass}}">
-...
-<li class="{{nextPageClass}}">
-...
-{% endhighlight %}
-
-Now we'll add the helper code, this just requires an update to the helper section of `list-customers.js`.
+###Hooking up the header links
+OK, so we have our sorting working, now we just need to hook it into our header links.  So we are going to need to hook up some events for those header links.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-// existing code...
+... existing code
+Template.listCustomers.events({
+  'click #btnAddCustomer': function(e) {
+    e.preventDefault();
 
+    Router.go('addCustomer', {page: Router.current().params.page});
+  },
+  'click #firstName,#lastName,#email': function(e) {
+    e.preventDefault();
+
+    if (e.target.id === 'firstName') {
+      setSortFieldAndDirection('name_sort');
+    } else if (e.target.id === 'lastName') {
+      setSortFieldAndDirection('surname_sort');
+    } else if (e.target.id === 'email') {
+      setSortFieldAndDirection('email');
+    }
+  }
+});
+
+/*******************************************
+ * Some template specific private functions
+ *******************************************/
+ var setSortFieldAndDirection = function(sortBy) {
+  // if not currently sorting by the clicked field
+  // set the sort field to the clicked field and the
+  // sort direction to ascending... else just toggle
+  // the sort direction
+  var currentSortField = Session.get('sortField') || 'name_sort';
+  if (currentSortField !== sortBy) {
+    Session.set('sortField', sortBy);
+    Session.set('sortDirection', 1);
+  } else {
+    toggleSortDirection();
+  }
+}
+
+var toggleSortDirection = function() {
+  var currentSortDirection = parseInt(Session.get('sortDirection')) || 1;
+  if (currentSortDirection === 1) {
+    Session.set('sortDirection', -1);
+  } else {
+    Session.set('sortDirection', 1);
+  }
+}
+{% endhighlight %}
+
+Nothing too crazy going on here, in the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on the clicked header we call into a function (`setSortFieldAndDirection`) we've created to set some Session variables that will keep track of the sort field and the sort direction.  We've got some pretty simple logic that sets the sort field to the value passed in to the function.  As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction.
+
+In order for this to work, we're going to need to update our subscription to take into account these new Session variables.
+
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+... existing code
+subscriptions: function() {
+    var skipCount = (this.currentPage() - 1) 
+      * parseInt(Meteor.settings.public.recordsPerPage);
+    
+    var currentSortField = Session.get('sortField') || 'name_sort';
+    var currentSortDirection = parseInt(Session.get('sortDirection')) || 1;
+
+    this.customersSub = Meteor.subscribe('customers', skipCount, 
+      currentSortField, currentSortDirection);  
+  },
+  ...
+  ...
+{% endhighlight %}
+
+And with that, we are able to sort our table.
+
+<img src="../images/posts/" class="img-responsive" />
+
+###Removing duplicate code
+We've got a little bit of duplication going on in `list-customers.js` and `customer-routes.js` so let's refactor the common code out.
+
+#####Terminal
+{% highlight Bash %}
+touch lib/customer-sort-settings.js
+{% endhighlight %}
+
+#####/lib/customer-sort-settings.js
+{% highlight JavaScript %}
+CustomerSortSettings = {};
+
+var SORT_FIELD = 'customerSortField';
+var SORT_DIRECTION = 'customerSortDirection';
+
+CustomerSortSettings.sortField = function() {
+  return Session.get(SORT_FIELD) || 'name_sort';
+}
+
+CustomerSortSettings.sortDirection = function() {
+  return parseInt(Session.get(SORT_DIRECTION)) || 1;
+}
+
+CustomerSortSettings.setSortFieldAndDirection = function(sortBy) {
+  // if not currently sorting by the clicked field
+  // set the sort field to the clicked field and the
+  // sort direction to ascending... else just toggle
+  // the sort direction
+  if (CustomerSortSettings.sortField() !== sortBy) {
+    Session.set(SORT_FIELD, sortBy);
+    Session.set(SORT_DIRECTION, 1);
+  } else {
+    toggleSortDirection();
+  }
+}
+
+var toggleSortDirection = function() {
+  if (CustomerSortSettings.sortDirection() === 1) {
+    Session.set(SORT_DIRECTION, -1);
+  } else {
+    Session.set(SORT_DIRECTION, 1);
+  }
+}
+{% endhighlight %}
+
+Here we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific of a Session key that is used the less chance of a conflict coming up... blah explain better.  We've then moved our code that grabs the current sort field and direction into `customer-sort-settings.js`.  We've also moved the logic that sets the Session variables out of `list-customers.js`.
+
+We can now remove much of the code out of `list-customers.js`, just keeping the event handler for the headers.
+
+#####/client/templates/customers/list-customer.js
+{% highlight JavaScript %}
+... existing code
+Template.listCustomers.events({
+  'click #btnAddCustomer': function(e) {
+    e.preventDefault();
+
+    Router.go('addCustomer', {page: Router.current().params.page});
+  },
+  'click #firstName,#lastName,#email': function(e) {
+    e.preventDefault();
+
+    if (e.target.id === 'firstName') {
+      CustomerSortSettings.setSortFieldAndDirection('name_sort');
+    } else if (e.target.id === 'lastName') {
+      CustomerSortSettings.setSortFieldAndDirection('surname_sort');
+    } else if (e.target.id === 'email') {
+      CustomerSortSettings.setSortFieldAndDirection('email');
+    }
+  }
+});
+{% endhighlight %}
+
+Much cleaner!  Now let's change the router.
+
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+... existing code
+subscriptions: function() {
+  var skipCount = (this.currentPage() - 1) 
+    + parseInt(Meteor.settings.public.recordsPerPage);
+  
+  this.customersSub = Meteor.subscribe('customers', skipCount, 
+    CustomerSortSettings.sortField(), CustomerSortSettings.sortDirection());  
+},
+...
+...
+{% endhighlight %}
+
+And with that, we're ready for one final change.
+
+###Adding a sort indicator
+It would be nice to have a sort indicator to provide some visual feedback to the user regarding how the table is currently sorted.  We'll use <a href="http://fortawesome.github.io/Font-Awesome/" target="_blank">font awesome</a> icons to indicate the sort direction.  A <a href="https://atmospherejs.com/natestrauser/font-awesome" target="_blank">package</a> is available, so lets get that added.
+
+#####Terminal
+{% highlight Bash %}
+meteor add natestrauser:font-awesome
+{% endhighlight %}
+
+Now we'll update our table headers to include an icon.
+
+#####/client/templates/customers/list-customers.js
+{% highlight HTML %}
+<template name="listCustomers">
+  <div class="row">
+    <div class="col-md-12">
+      <a class="btn btn-primary" id="btnAddCustomer">Add customer</a>
+    </div>
+  </div>
+
+  {% raw %}{{#unless ready}}        
+    {{> spinner}}      
+  {{/unless}}{% endraw %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>
+          <a id="firstName" href="#">First name
+            <span>
+              <i class="{% raw %}{{firstNameIconClass}}{% endraw %}"></i>
+            </span>
+          </a>
+        </th>
+        <th>
+          <a id="lastName" href="#">Last name
+            <span>
+              <i class="{% raw %}{{lastNameIconClass}}{% endraw %}"></i>
+            </span>
+          </a>
+        </th>
+        <th>
+          <a id="email" href="#">Email
+            <span>
+              <i class="{% raw %}{{emailIconClass}}{% endraw %}"></i>
+            </span>
+          </a>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+    ...
+    ...
+{% endhighlight %}
+
+So we've added icon classes to each header.  Now we need to define those in `list-customers.js`.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+... existing code
 Template.listCustomers.helpers({
   customers: function() {
     return Customers.find();
   },
-  prevPage: function() {
-    var previousPage = Router.current().currentPage() === 1 
-      ? 1 : Router.current().currentPage() - 1;
-    return Router.routes.listCustomers.path({page: previousPage});
+  ...
+  ...
+  ,
+  firstNameIconClass: function() {
+    return CustomerSortSettings.getSortIconClass("name_sort");
   },
-  nextPage: function() {
-    var nextPage = hasMorePages() 
-      ? Router.current().currentPage() + 1 : Router.current().currentPage();
-    return Router.routes.listCustomers.path({page: nextPage});
+  lastNameIconClass: function() {
+    return CustomerSortSettings.getSortIconClass("surname_sort");
   },
-  prevPageClass: function() {
-    return Router.current().currentPage() <= 1 ? "disabled" : "";
+  emailIconClass: function() {
+    return CustomerSortSettings.getSortIconClass("email");
   },
-  nextPageClass: function() {
-    return hasMorePages() ? "" : "disabled";
-  }
 });
-
-// existing code...
+...
+...
 {% endhighlight %}
 
-So here all we're doing is returning an empty string when the buttons should display as normal and returning "disabled" when the buttons should be disabled.
+All we're doing is calling into a new function we've created in `customer-sort-settings.js`.
 
-This results in a visual clue for the user:
+#####/lib/customer-sort-settings.js
+{% highlight JavaScript %}
+... existing code
+CustomerSortSettings.getSortIconClass = function(element) {
+  if (CustomerSortSettings.sortField() === element) {
+    return CustomerSortSettings.sortDirection() === -1 ? 
+      "fa fa-sort-asc" : "fa fa-sort-desc";
+  } else {
+    return "fa fa-sort";
+  }
+}
+...
+...
+{% endhighlight %}
 
-<img src="../images/posts/paging-and-sorting-part-1/no-next.png" class="img-responsive" />
+Pretty simple, if the passed in element is the current sort field, we return either the `fa-sort-asc` or `fa-sort-desc` icon based on the current sort direction.  Otherwise we return the double-arrow default sort icon, i.e. `fa-sort`.
 
 ##Summary
-OK, so that's it for the exciting world of paging in Meteor, thanks for reading and hope you enjoyed the post.  In part two we'll look at adding sorting.
+And with that... sorting, paging, icons... done!
+
+<img src="../images/posts/" class="img-responsive" />
+
+Thanks for reading and hope you enjoyed getting sorted!
