@@ -5,7 +5,7 @@ summary: It isn't the sexiest or most interesting of topics, but providing pagin
 ---
 This is the second of our two part paging and sorting in Meteor series.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at how to add paging, in this post we'll add the sorting component.
 
-If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting/tree/part-1" target="_blank">GitHubUPDATE THE LINK!!!</a>.
+If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
 
 ##What we'll build
 To demonstrate paging and sorting we're going to build a simple list of customers.
@@ -13,7 +13,7 @@ To demonstrate paging and sorting we're going to build a simple list of customer
 <img src="../images/posts/paging-and-sorting-part-2/app-done-part-2.png" class="img-responsive" />
 
 ##Creating the app
-If you followed along with <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> you can continue along with the code you built up.  Otherwise if you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  This version of the application contains a paged list of customers and the ability to add more customers.
+If you followed along with <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> you're all set.  If not and you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  This version of the application contains a paged list of customers and the ability to add more customers.
 
 ###Clone the Repo
 Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/paging-and-sorting/tree/part-1" target="_blank">here</a>.  Otherwise time to git down.
@@ -28,7 +28,7 @@ cd paging-and-sorting
 
 #####Terminal
 {% highlight Bash %}
-meteor
+meteor --settings settings.json
 {% endhighlight %}
 
 You should now see the starting point for our application when you navigate your browser to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>.
@@ -41,7 +41,7 @@ You should now see the starting point for our application when you navigate your
 ###Updating the table headers
 The first thing we'll do to is to update the UI.  We'll switch out the table headers with links.
 
-#####/client/templates/customers/listCustomers.html
+#####/client/templates/customers/list-customers.html
 {% highlight HTML %}
 <template name="listCustomers">
   <div class="row">
@@ -73,11 +73,11 @@ The first thing we'll do to is to update the UI.  We'll switch out the table hea
       ...
 {% endhighlight %}
 
-OK, nothing complicated there, before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  
+OK, nothing complicated there, but before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  
 
 ###Updating the publication and subscription
 
-OK, so let's update our publication first off.
+Let's update the publication first.
 
 #####/server/publications.js
 {% highlight JavaScript %}
@@ -104,18 +104,13 @@ Let's check out our app:
 
 That's no good, but expected, we need to update our subscription to include the two new parameters, let's hard-code some values for now.
 
-Let's have a quick look at our database records via <a href="https://github.com/msavin/Mongol" target="_blank">Mongol</a>.
+To figure out what we're going to need to do, let's have a quick look at our database records with <a href="http://robomongo.org/" target="_blank">Robomongo</a>.
 
-#####Terminal
-{% highlight Bash %}
-meteor add msavin:mongol
-{% endhighlight %}
+We've got 4 fields in our customer records and the column names are slightly different from what we are displaying in the UI.
 
-After the package is installed hitting control-m in the browser will bring up Mongol.  We can see that we've got 4 fields in our customer records and the column names are slightly different from what we are displaying in the UI.
+<img src="../images/posts/paging-and-sorting-part-2/robo.png" class="img-responsive" />
 
-<img src="../images/posts/paging-and-sorting-part-2/mongol.png" class="img-responsive" />
-
-Let's get our app back working by hard-coding some values into our subscription, how about we go with the surname.
+Let's get our app back working by hard-coding some values into our subscription, how about we go with the surname and an order value of 1 (i.e. ascending).
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -133,8 +128,7 @@ CustomersListController = RouteController.extend({
 
 After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
 
-#REPLACE
-<img src="../images/posts/paging-and-sorting-part-2/sort-by-email.png" class="img-responsive" />
+<img src="../images/posts/paging-and-sorting-part-2/sort-by-surname.png" class="img-responsive" />
 
 ###An issue
 Hmm, I'm getting bored having only 6 customers in our database, how about we add a new customer via the `Add Customer` button.
@@ -148,18 +142,18 @@ Awesome, we have a new customer... but hey what is up with the sort order?  Our 
 Well turns out Mongo does not support <a href="http://stackoverflow.com/questions/22931177/mongo-db-sorting-with-case-insensitive" target="_blank">case insensitive sorting</a>, and uppercase words will always come prior to lowercase words when sorted.  Holy smokes, what are we going to do?
 
 ###A solution
-Turns out a common pattern when needing to sort on String columns in Mongo is to duplicate a lowercased version of the field for the purpose of sorting.  Coming from a traditional database background, this seems a little strange, but that's just the way it's done in Mongo, denormalization and duplication is common.
+Turns out a common pattern when needing to sort on String columns in Mongo is to duplicate a lowercased version of the field for the purpose of sorting.  Coming from a traditional database background, this seems a little strange, but that's just the way it's done in Mongo, denormalization and duplication is fairly common.
 
 So how can we accomplish this in our application?  There's a package for that (well sort of)!
 
-We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow use to automatically create lower-cased versions of our String fields on insert.  Let's seem how it all looks.
+We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow use to automatically create lower-cased versions of our String fields on insert.  Let's see how it all works.
 
 #####Terminal
 {% highlight Bash %}
 meteor add aldeed:collection2
 {% endhighlight %}
 
-Now we'll create a <a href="https://github.com/aldeed/meteor-collection2#attaching-a-schema-to-a-collection" target="_blank">schema</a> to our customer collection.
+Now we'll create a <a href="https://github.com/aldeed/meteor-collection2#attaching-a-schema-to-a-collection" target="_blank">schema</a> for our customer collection.
 
 #####Terminal
 {% highlight Bash %}
@@ -213,7 +207,7 @@ Customers.attachSchema(new SimpleSchema({
 })); 
 {% endhighlight %}
 
-In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` field to assign the value of our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.
+In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` property to create and assign a value to our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.
 
 We'll want to reset our app so that our fixture data gets the new auto value data.  So stop and re-start the meteor server.
 
@@ -223,7 +217,7 @@ meteor reset
 meteor --settings settings.json
 {% endhighlight %}
 
-And now re-adding Bob d'Arnaud, puts him in the right place after we make a small change to our subscription.
+And now re-adding Bob d'Arnaud, puts him in the right place after we make a small change to our subscription, using the `surname_sort` column instead of `surname` as the sort column.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -243,14 +237,15 @@ CustomersListController = RouteController.extend({
 
 There we go, Bob is now where he belongs.
 
-<img src="../images/posts/paging-and-sorting-part2/good-sort.png" class="img-responsive" />
+<img src="../images/posts/paging-and-sorting-part-2/good-sort.png" class="img-responsive" />
 
 ###Hooking up the header links
-OK, so we have our sorting working, now we just need to hook it into our header links.  So we are going to need to hook up some events for those header links.
+OK, so we have our sorting working, now we just need to hook it into our header links.  Let's hook up some events for those header links.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
 ... existing code
+
 Template.listCustomers.events({
   'click #btnAddCustomer': function(e) {
     e.preventDefault();
@@ -297,14 +292,15 @@ var toggleSortDirection = function() {
 }
 {% endhighlight %}
 
-Nothing too crazy going on here, in the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on the clicked header we call into a function (`setSortFieldAndDirection`) we've created to set some Session variables that will keep track of the sort field and the sort direction.  We've got some pretty simple logic that sets the sort field to the value passed in to the function.  As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction.
+Nothing too crazy going on here, in the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on the clicked header we call into a function (`setSortFieldAndDirection`) we've created to set some Session variables that will keep track of the sort field and the sort direction.  We've got some pretty simple logic that sets the sort field to the value passed in to the function.  As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction via you guessed it `toggleSortDirection`.
 
-In order for this to work, we're going to need to update our subscription to take into account these new Session variables.
+In order for this to work, we're going to need to update our subscription to take into account the new Session variables.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
 ... existing code
-subscriptions: function() {
+
+  subscriptions: function() {
     var skipCount = (this.currentPage() - 1) 
       * parseInt(Meteor.settings.public.recordsPerPage);
     
@@ -314,13 +310,64 @@ subscriptions: function() {
     this.customersSub = Meteor.subscribe('customers', skipCount, 
       currentSortField, currentSortDirection);  
   },
-  ...
-  ...
+...
+...
 {% endhighlight %}
 
 And with that, we are able to sort our table.
 
-<img src="../images/posts/" class="img-responsive" />
+<img src="../images/posts/paging-and-sorting-part-2/sort.gif" class="img-responsive" />
+
+However, you may notice something a little strange going on with the screen capture above.  If you look closely there are temporarily more than 3 records showing on our page.  I believe this is due to the page being rendered prior to the subscription being completely ready.  What's happening is we're re-rendering the page as we grab the next 3 records from the server but we still haven't completely cleared out the existing subscription.  One way to deal with this would be to surround the rendering code with a ready statement, i.e.
+
+#####/client/templates/customer/list-customers.html
+{% highlight HTML %}
+<template name="listCustomers">
+  <div class="row">
+    <div class="col-md-12">
+      <a class="btn btn-primary" id="btnAddCustomer">Add customer</a>
+    </div>
+  </div>
+
+  {% raw %}{{#unless ready}}        
+    {{> spinner}}      
+  {{/unless}}
+  {{#if ready}}{% endraw %}
+  <table class="table">
+    <thead>
+    ...
+    ...
+  {% raw %}{{/if}}{% endraw %}
+  <nav>
+    <ul class="pager">
+  ...
+  ...
+{% endhighlight %}
+
+The problem with this approach is that the page will tend to "jump", with the table temporarily disappearing and the navigation buttons moving to the top of the page.
+
+<img src="../images/posts/paging-and-sorting-part-2/jump.gif" class="img-responsive" />
+
+Instead we'll apply the same limit filtering to our `find` call in the client as we do on the server.  This will ensure that only the correct number of records appear.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+... existing code
+
+Template.listCustomers.helpers({
+  customers: function() {
+    return Customers.find({}, {
+      limit: parseInt(Meteor.settings.public.recordsPerPage)
+    });
+  },
+  prevPage: function() {
+...
+...
+{% endhighlight %}
+
+And now we are all good.
+
+<img src="../images/posts/paging-and-sorting-part-2/all-good.gif" class="img-responsive" />
 
 ###Removing duplicate code
 We've got a little bit of duplication going on in `list-customers.js` and `customer-routes.js` so let's refactor the common code out.
@@ -367,7 +414,9 @@ var toggleSortDirection = function() {
 }
 {% endhighlight %}
 
-Here we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific of a Session key that is used the less chance of a conflict coming up... blah explain better.  We've then moved our code that grabs the current sort field and direction into `customer-sort-settings.js`.  We've also moved the logic that sets the Session variables out of `list-customers.js`.
+First we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific a Session key the better.  As your application grows if you use very generic Session key's there is a chance you'll unintentionally re-use a key for more than one thing, and in the process introduce all sorts of nasty, hard to track down bugs. 
+
+After dealing with the Session keys, we've moved the code that grabs the current sort field and direction into `customer-sort-settings.js`.  We've also moved the logic that sets the Session variables out of `list-customers.js`.
 
 We can now remove much of the code out of `list-customers.js`, just keeping the event handler for the headers.
 
@@ -394,23 +443,24 @@ Template.listCustomers.events({
 });
 {% endhighlight %}
 
-Much cleaner!  Now let's change the router.
+Much cleaner without the private functions in there!  Now let's change the router, just the subscription section needs to change.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
 ... existing code
-subscriptions: function() {
-  var skipCount = (this.currentPage() - 1) 
-    + parseInt(Meteor.settings.public.recordsPerPage);
-  
-  this.customersSub = Meteor.subscribe('customers', skipCount, 
-    CustomerSortSettings.sortField(), CustomerSortSettings.sortDirection());  
-},
+
+  subscriptions: function() {
+    var skipCount = (this.currentPage() - 1) 
+      * parseInt(Meteor.settings.public.recordsPerPage);
+    
+    this.customersSub = Meteor.subscribe('customers', skipCount, 
+      CustomerSortSettings.sortField(), CustomerSortSettings.sortDirection());  
+  },
 ...
 ...
 {% endhighlight %}
 
-And with that, we're ready for one final change.
+And with that the refactoring is complete... now we're ready for one final change.
 
 ###Adding a sort indicator
 It would be nice to have a sort indicator to provide some visual feedback to the user regarding how the table is currently sorted.  We'll use <a href="http://fortawesome.github.io/Font-Awesome/" target="_blank">font awesome</a> icons to indicate the sort direction.  A <a href="https://atmospherejs.com/natestrauser/font-awesome" target="_blank">package</a> is available, so lets get that added.
@@ -470,6 +520,7 @@ So we've added icon classes to each header.  Now we need to define those in `lis
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
 ... existing code
+
 Template.listCustomers.helpers({
   customers: function() {
     return Customers.find();
@@ -496,6 +547,7 @@ All we're doing is calling into a new function we've created in `customer-sort-s
 #####/lib/customer-sort-settings.js
 {% highlight JavaScript %}
 ... existing code
+
 CustomerSortSettings.getSortIconClass = function(element) {
   if (CustomerSortSettings.sortField() === element) {
     return CustomerSortSettings.sortDirection() === -1 ? 
@@ -504,15 +556,19 @@ CustomerSortSettings.getSortIconClass = function(element) {
     return "fa fa-sort";
   }
 }
-...
-...
+
+var toggleSortDirection = function() {
+  ...
+  ...
 {% endhighlight %}
 
-Pretty simple, if the passed in element is the current sort field, we return either the `fa-sort-asc` or `fa-sort-desc` icon based on the current sort direction.  Otherwise we return the double-arrow default sort icon, i.e. `fa-sort`.
+Pretty simple, if the passed in element is the current sort field, we return the `fa-sort-asc` or `fa-sort-desc` icon class based on the current sort direction.  Otherwise we return the double-arrow default sort icon, i.e. `fa-sort`.
 
 ##Summary
 And with that... sorting, paging, icons... done!
 
-<img src="../images/posts/" class="img-responsive" />
+#NOT WORKING, MISSED SOMETHING?  MASTER WORKS A-OK
+
+<img src="../images/posts/paging-and-sorting-part-2/done.gif" class="img-responsive" />
 
 Thanks for reading and hope you enjoyed getting sorted!
