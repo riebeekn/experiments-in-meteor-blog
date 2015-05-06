@@ -3,7 +3,7 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 2
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In part 1 we implemented paging, in this post we'll add sorting.
 ---
-This is the second of our two part paging and sorting in Meteor series.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at how to add paging, in this post we'll add the sorting component.
+This is the second of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at how to add paging, in this post we'll add the sorting component.
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
 
@@ -33,13 +33,12 @@ meteor --settings settings.json
 
 You should now see the starting point for our application when you navigate your browser to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/app-starting-point.png" class="img-responsive" />
 
 ##Adding sorting
 
 ###Updating the table headers
-The first thing we'll do to is to update the UI.  We'll switch out the table headers with links.
+The first thing we'll do is update the UI to have click-able headers, substituting links for the current headers.
 
 #####/client/templates/customers/list-customers.html
 {% highlight HTML %}
@@ -73,7 +72,7 @@ The first thing we'll do to is to update the UI.  We'll switch out the table hea
       ...
 {% endhighlight %}
 
-OK, nothing complicated there, but before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  
+OK, nothing complicated there, but before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This will require a change to both the publication and the subscription.
 
 ###Updating the publication and subscription
 
@@ -96,21 +95,21 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 });
 {% endhighlight %}
 
-Nothing too crazy, we're just passing two additional parameters to our publication and updating the find call to take the new parameters into account.
+Nothing too crazy, we're passing two additional parameters to our publication, one for the sort field and the other for the sort direction.  The find call has been updated to take the new parameters into account.
 
 Let's check out our app:
 
 <img src="../images/posts/paging-and-sorting-part-2/no-worky.gif" class="img-responsive" />
 
-That's no good, but expected, we need to update our subscription to include the two new parameters, let's hard-code some values for now.
+That's no good, but expected, we need to update our subscription to include the two new parameters.  To get things back to a working state we'll initially hard-code some values and then build out the full implementation.
 
-To figure out what we're going to need to do, let's have a quick look at our database records with <a href="http://robomongo.org/" target="_blank">Robomongo</a>.
-
-We've got 4 fields in our customer records and the column names are slightly different from what we are displaying in the UI.
+First off though, to figure out what we're going to need to do, let's have a quick look at our database records with <a href="http://robomongo.org/" target="_blank">Robomongo</a>.
 
 <img src="../images/posts/paging-and-sorting-part-2/robo.png" class="img-responsive" />
 
-Let's get our app back working by hard-coding some values into our subscription, how about we go with the surname and an order value of 1 (i.e. ascending).
+We can see we have 5 fields in our customer record, 3 of which we are displaying in the UI.  Also the column names are slightly different from the table headers, so when we specify the sort field we need to keep in mind the column names in the database.
+
+Let's start off by sorting via the surname with an order value of 1 (i.e. an ascending sort direction).
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -129,6 +128,28 @@ CustomersListController = RouteController.extend({
 After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort-by-surname.png" class="img-responsive" />
+
+Since we're only using some of the columns from our database records, we should also update our publication to reflect this.
+
+#####/server/publications.js
+{% highlight JavaScript %}
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+
+  var sortParams = {};
+  sortParams[sortField] = sortDirection;
+  return Customers.find({}, {
+    fields: {'name':1, 'surname':1, 'email':1},
+    limit: parseInt(Meteor.settings.public.recordsPerPage),
+    skip: skipCount,
+    sort: sortParams
+  });
+});
+{% endhighlight %}
+
+We're now explicitly specifying which fields to return in the publication (note the `_id` will be returned automatically).  Although not a big deal in this particular instance, specifying the columns to return to the client is a good practice.  There is not point in bringing down data that you don't need and in some cases there might be columns in your database that you don't want to expose to the client.
 
 ###An issue
 Hmm, I'm getting bored having only 6 customers in our database, how about we add a new customer via the `Add Customer` button.
@@ -209,7 +230,7 @@ Customers.attachSchema(new SimpleSchema({
 
 In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` property to create and assign a value to our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.
 
-We'll want to reset our app so that our fixture data gets the new auto value data.  So stop and re-start the meteor server.
+We'll want to reset our app so that our fixture data gets the new auto value data.  So stop, reset and re-start the meteor server.
 
 #####Terminal
 {% highlight Bash %}
@@ -217,7 +238,7 @@ meteor reset
 meteor --settings settings.json
 {% endhighlight %}
 
-And now re-adding Bob d'Arnaud, puts him in the right place after we make a small change to our subscription, using the `surname_sort` column instead of `surname` as the sort column.
+And now re-adding Bob d'Arnaud, puts him in the right place... after we make a small change to our subscription, using the `surname_sort` column instead of `surname` as the sort column.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -240,7 +261,7 @@ There we go, Bob is now where he belongs.
 <img src="../images/posts/paging-and-sorting-part-2/good-sort.png" class="img-responsive" />
 
 ###Hooking up the header links
-OK, so we have our sorting working, now we just need to hook it into our header links.  Let's hook up some events for those header links.
+OK, so we have our sorting working, now we just need to hook it into our header links.  Let's add some events for the links.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -292,9 +313,15 @@ var toggleSortDirection = function() {
 }
 {% endhighlight %}
 
-Nothing too crazy going on here, in the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on the clicked header we call into a function (`setSortFieldAndDirection`) we've created to set some Session variables that will keep track of the sort field and the sort direction.  We've got some pretty simple logic that sets the sort field to the value passed in to the function.  As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction via you guessed it `toggleSortDirection`.
+OK, that's a bit of a code dump but it's all pretty straight-forward.  
 
-In order for this to work, we're going to need to update our subscription to take into account the new Session variables.
+In the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on that, pass in the appropriate sort column to the `setSortFieldAndDirection` function.
+
+In `setSortFieldAndDirection` we set some Session variables to keep track of the current sort field and sort direction.  We've got some  simple logic that sets the sort field Session value to the value passed in to the function (defaulting to the `name_sort` column when the `sortDirection` is `null`... for instance on the initial page load).  
+
+As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction via you guessed it `toggleSortDirection`.
+
+In order for all this to work, we're going to need to update our subscription to take into account the new Session variables.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -318,7 +345,7 @@ And with that, we are able to sort our table.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort.gif" class="img-responsive" />
 
-However, you may notice something a little strange going on with the screen capture above.  If you look closely there are temporarily more than 3 records showing on our page.  I believe this is due to the page being rendered prior to the subscription being completely ready.  What's happening is we're re-rendering the page as we grab the next 3 records from the server but we still haven't completely cleared out the existing subscription.  One way to deal with this would be to surround the rendering code with a ready statement, i.e.
+However, you may notice something a little strange going on with the screen capture above.  If you look closely there are temporarily more than 3 records showing on our page.  This is due to the page being rendered prior to the subscription being completely ready.  What's happening is we're re-rendering the page as we grab the next 3 records from the server but we still haven't completely cleared out the existing records.  One way to deal with this would be to surround the rendering code with a ready statement, i.e.
 
 #####/client/templates/customer/list-customers.html
 {% highlight HTML %}
@@ -348,7 +375,7 @@ The problem with this approach is that the page will tend to "jump", with the ta
 
 <img src="../images/posts/paging-and-sorting-part-2/jump.gif" class="img-responsive" />
 
-Instead we'll apply the same limit filtering to our `find` call in the client as we do on the server.  This will ensure that only the correct number of records appear.
+Instead we'll apply the same limit filtering to our `find` call in the client as we do on the server.  This will ensure that only the correct number of records ever appeara.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -414,15 +441,16 @@ var toggleSortDirection = function() {
 }
 {% endhighlight %}
 
-First we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific a Session key the better.  As your application grows if you use very generic Session key's there is a chance you'll unintentionally re-use a key for more than one thing, and in the process introduce all sorts of nasty, hard to track down bugs. 
+First we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific a Session key the better.  As your application grows if you use very generic Session keys there is a chance you'll unintentionally re-use a key for more than one thing, and in the process introduce all sorts of nasty, hard to track down bugs. 
 
-After dealing with the Session keys, we've moved the code that grabs the current sort field and direction into `customer-sort-settings.js`.  We've also moved the logic that sets the Session variables out of `list-customers.js`.
+After dealing with the Session keys, the next bit is just code we've moved out of the router that grabs the current sort field and direction.  Next we've  moved out from `list-customers.js` the logic that sets the Session variables.
 
-We can now remove much of the code out of `list-customers.js`, just keeping the event handler for the headers.
+As a result we can remove much of the code in `list-customers.js`, just keeping the event handler for the headers.
 
 #####/client/templates/customers/list-customer.js
 {% highlight JavaScript %}
 ... existing code
+
 Template.listCustomers.events({
   'click #btnAddCustomer': function(e) {
     e.preventDefault();
@@ -460,7 +488,7 @@ Much cleaner without the private functions in there!  Now let's change the route
 ...
 {% endhighlight %}
 
-And with that the refactoring is complete... now we're ready for one final change.
+And with that the refactoring is complete... now we're ready for one final step.
 
 ###Adding a sort indicator
 It would be nice to have a sort indicator to provide some visual feedback to the user regarding how the table is currently sorted.  We'll use <a href="http://fortawesome.github.io/Font-Awesome/" target="_blank">font awesome</a> icons to indicate the sort direction.  A <a href="https://atmospherejs.com/natestrauser/font-awesome" target="_blank">package</a> is available, so lets get that added.
@@ -536,7 +564,7 @@ Template.listCustomers.helpers({
   },
   emailIconClass: function() {
     return CustomerSortSettings.getSortIconClass("email");
-  },
+  }
 });
 ...
 ...
@@ -566,8 +594,6 @@ Pretty simple, if the passed in element is the current sort field, we return the
 
 ##Summary
 And with that... sorting, paging, icons... done!
-
-#NOT WORKING, MISSED SOMETHING?  MASTER WORKS A-OK
 
 <img src="../images/posts/paging-and-sorting-part-2/done.gif" class="img-responsive" />
 
