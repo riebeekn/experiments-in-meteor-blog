@@ -1,0 +1,18 @@
+.archive {
+  h1 {
+    @include font-size(36);
+    color: $gothic;
+  }
+  a {
+    text-decoration: none;
+    color: $gothic;
+    border: none;
+    &:hover {
+      color: $nobel;
+    }
+  }
+  li {
+    @include font-size(18);
+    color: $tuna;
+  }
+}
