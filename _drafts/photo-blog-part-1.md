@@ -5,7 +5,7 @@ summary: In this post we are going to look at how to handle file uploads to Amaz
 ---
 In this post we are going to look at how to handle file uploads to Amazon S3 in Meteor.  
 
-One caveat right off the top... the core package we're going to be using <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a>, is still under active development.  So there may be changes to the package that will impact how uploads are handled.  I'll keep my eye on any changes however and update the post as necessary.
+One caveat right off the top... the core package we're going to be using <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a>, is still under active development.  So there may be changes to the package that will impact how uploads are handled.  I'll aim to keep my eye on any changes however, and make updates to this post as necessary.
 
 ##What we'll build
 To demonstrate file uploads we're going to build a simple photo blog similar to <a href="https://www.tumblr.com/" target="_blank">Tumblr</a>.  At the end of Part 1 we'll be able to upload and display images:
@@ -129,12 +129,12 @@ Template.dropzone.events({
 
 For now, all we're doing in our event handler is to log to the console.
 
-Now if we place a file in the drop zone, we can confirm via the browser console that the drop zone is acting as expected.
+After the above change, if we place a file in the drop zone, we can confirm via the browser console that the drop zone is acting as expected.
 
 <img src="../images/posts/photo-blog-part-1/dropped.png" class="img-responsive" />
 
 ##Upload Ahoy!
-OK, so we've got our UI all set up, but now comes the tricky part, actually getting it to perform an upload.  As mentioned previously we'll be using the <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a> package to help with our file uploads.  There are a number of packages associated with CollectionFS that we'll need to add.  We've already added a package for the drop-zone UI, now we'll add the packages that will handle the uploads.
+OK, so we've got our UI all set up, but now comes the tricky part, actually performing an upload.  As mentioned previously we'll be using the <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a> package to help with our file uploads.  There are a number of packages associated with CollectionFS that we'll need to add.  We've already added a package for the drop-zone UI, now we'll add the packages that will handle the uploads.
 
 #####Terminal
 {% highlight Bash %}
@@ -144,7 +144,7 @@ meteor add cfs:standard-packages cfs:gridfs cfs:s3
 Let's quickly go over what each of these packages gives us.
 
 * <a href="https://atmospherejs.com/cfs/standard-packages" target="_blank">cfs:standard-packages</a> - this is a base wrapper package for CollectionFS and is required.  Anytime you use CollectionFS you'll be adding the standard packages package.
-* <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">cfs:gridfs</a> - this package is used to store file data in chunks in the MongoDB.  In our case we won't actually be storing our images in our MongoDB, we'll be storing them on <a href="http://aws.amazon.com/s3/" target="_blank">Amazon S3</a>.  However CollectionFS uses either the <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">GridFS</a>  or <a href="https://atmospherejs.com/cfs/filesystem" target="_blank">FileSystem</a> packages as a temporary store when uploading files to S3, so we need to include one of them.
+* <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">cfs:gridfs</a> - this package is used to store file data in chunks in MongoDB.  In our case we won't actually be storing our images in our Mongo database, we'll be storing them on <a href="http://aws.amazon.com/s3/" target="_blank">Amazon S3</a>.  However CollectionFS uses either the <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">GridFS</a>  or <a href="https://atmospherejs.com/cfs/filesystem" target="_blank">FileSystem</a> packages as a temporary store when uploading files to S3, so we need to include one of them and we've chosen GridFS.
 * <a href="https://atmospherejs.com/cfs/s3" target="_blank">cfs:s3</a> - this is the package that handles the uploads to S3.
 
 ###Setting up S3
@@ -163,13 +163,15 @@ The user we create in the last step is what we are ultimately after.  We'll be a
 
 ####Sign-up
 
-First off, if you don't already have an S3 account, <a href="http://docs.aws.amazon.com/AmazonS3/latest/gsg/GetStartedWithS3.html" target="_blank">this</a> is a good guide for getting started.
+First off, if you don't already have an S3 account, you'll need to sign-up for one.  Go to <a href="http://aws.amazon.com/" target="_blank">http://aws.amazon.com/</a> and click the 'Create a Free Account' button.  Follow the on screen instructions to complete the sign-up process.
 
-Once you have an account set-up and are signed in, it's time to create our bucket.
+Once you have an account set-up, sign-in to the AWS console.
+
+<img src="../images/posts/photo-blog-part-1/aws-sign-in.png" class="img-responsive" />
 
 ####Creating a bucket
 
-First step is to access S3 from the AWS console.
+OK now that we have an account and are signed in to the AWS console it is time to create our bucket.  The first step is to access S3 from the AWS console.
 
 <img src="../images/posts/photo-blog-part-1/s3.png" class="img-responsive" />
 
@@ -205,7 +207,11 @@ Enter 's3' in the search box and select 'AmazonS3FullAccess' policy.
 
 <img src="../images/posts/photo-blog-part-1/create-policy-03.png" class="img-responsive" />
 
-The default policy document is.
+We'll want to update the name, description and document of the policy.
+
+So first off, enter a name and description for the policy.  Using a descriptive name is always a good idea so that you are able to recognize what the policy refers to just by the name.  For instance, I will use a name of 'nicks-photo-blog-policy'.
+
+Next, alter the policy document to limit the policy to just the bucket created earlier.  For example the default policy document is:
 
 {% highlight JavaScript %}
 {
@@ -220,13 +226,7 @@ The default policy document is.
 }
 {% endhighlight %}
 
-We'll want to update the name, description and document of the policy.
-
-Enter a name and description for the policy.
-
-Using a descriptive name is always a good idea so that you are able to recognize what the policy refers to just by the name.  For instance, I will use a name of 'nicks-photo-blog-policy'.  
-
-Next, alter the policy document to limit the policy to just the bucket created earlier.  For example with a bucket named 'nicks-photo-blog', the policy would be.
+Following our example with a bucket named 'nicks-photo-blog', we would alter the policy like so:
 
 {% highlight JavaScript %}
 {
@@ -432,9 +432,9 @@ Except then someone could easily steal our S3 credentials:
 
 <img src="../images/posts/photo-blog-part-1/settings-exposed.png" class="img-responsive" />
 
-Other than not specifying the S3 keys the only difference with the client code is that we spit out a toast message if the file upload fails.
+Other than not specifying the S3 keys the only other difference with the client code is that we spit out a toast message if the file upload fails.
 
-The final code block specifies the allow rules on the collection.  For now we allow any inserts so return true for inserts.  The Update rule is also required when using the S3 store, I believe it has something to do with the way FSCollection streams the file to S3.
+The `Images.allow...` code block specifies the allow rules on the collection.  For now we allow any inserts so return true for inserts.  The Update rule is also required when using the S3 store, I believe it has something to do with the way FSCollection streams the file to S3.
 
 OK, so we've got our collection all set-up, now we just need to hook it up in our client code.  We'll alter our `dropzone.js` file so that it does something other than print out a console message.
 
@@ -477,7 +477,7 @@ So that's all good, but we're probably not going to want to view our images via 
 
 ###Setting up a publication and subscribing to it
 
-So first thing we need to do is create a <a href="http://docs.meteor.com/#/full/meteor_publish" target="_blank">publication for our images that we can subscribe to</a>.  First let's set up the publication.
+First thing we need to do is create a <a href="http://docs.meteor.com/#/full/meteor_publish" target="_blank">publication</a> for our images that we can subscribe to.  Let's set up the publication.
 
 #####Terminal
 {% highlight Bash %}
