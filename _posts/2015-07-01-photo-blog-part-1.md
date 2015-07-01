@@ -3,9 +3,7 @@ layout:     post
 title:      Creating a photo blog in Meteor - Part 1
 summary: In this post we are going to look at how to handle file uploads to Amazon S3 in Meteor.  We'll create a simple photo blog using some great 3rd party packages which make handling files in Meteor a snap.
 ---
-In this post we are going to look at how to handle file uploads to Amazon S3 in Meteor.  
-
-One caveat right off the top... the core package we're going to be using <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a>, is still under active development.  So there may be changes to the package that will impact how uploads are handled.  I'll aim to keep my eye on any changes however, and make updates to this post as necessary.
+In this post we are going to look at how to handle file uploads to Amazon S3 in Meteor.
 
 ##What we'll build
 To demonstrate file uploads we're going to build a simple photo blog similar to <a href="https://www.tumblr.com/" target="_blank">Tumblr</a>.  At the end of Part 1 we'll be able to upload and display images:
@@ -320,6 +318,8 @@ cp settings.json.template settings.json
 settings.json
 {% endhighlight %}
 
+Here we're just telling Git to ignore the settings.json file and not include it in our source control repository.
+
 #####/settings.json.template
 {% highlight JavaScript %}
 {
@@ -328,6 +328,8 @@ settings.json
   "AWSBucket" : "<AWS BUCKET>"
 }
 {% endhighlight %}
+
+With `settings.json.template` we're specifying what our `settings.json` file should look like... minus the actual values.  Including a template file means it should be easy for someone using our code to figure out what is required as far as settings go.
 
 OK, now we need to fill in our actual `settings.json` file, this is where the credentials.csv that we downloaded when creating our user in IAM comes into play.
 
@@ -411,7 +413,7 @@ Images.allow({
 });
 {% endhighlight %}
 
-So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for FSCollection to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.  We then define our collection, which we are naming 'Images'.  In our collection definition we specify the store (which we defined via the `imageStore` variable) and a filter, the filter just limits the type of files that can be uploaded, in our case we are restricting uploads to images.
+So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for CollectionFS to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.  We then define our collection, which we are naming 'Images'.  In our collection definition we specify the store (which we defined via the `imageStore` variable) and a filter, the filter just limits the type of files that can be uploaded, in our case we are restricting uploads to images.
 
 The `if (Meteor.isClient)...` block defines the client version of the Collection.  The main difference being that we don't set our S3 keys.  This is a key point, we don't want to make our keys available on the client, if we did someone could grab them using the browser console, for instance if we defined `settings.json` like so:
 
@@ -434,7 +436,7 @@ Except then someone could easily steal our S3 credentials:
 
 Other than not specifying the S3 keys the only other difference with the client code is that we spit out a toast message if the file upload fails.
 
-The `Images.allow...` code block specifies the allow rules on the collection.  For now we allow any inserts so return true for inserts.  The Update rule is also required when using the S3 store, I believe it has something to do with the way FSCollection streams the file to S3.
+The `Images.allow...` code block specifies the allow rules on the collection.  For now we allow any inserts so return true for inserts.  The Update rule is also required when using the S3 store, I believe it has something to do with the way CollectionFS streams the file to S3.
 
 OK, so we've got our collection all set-up, now we just need to hook it up in our client code.  We'll alter our `dropzone.js` file so that it does something other than print out a console message.
 
@@ -457,7 +459,7 @@ Template.dropzone.events({
 });
 {% endhighlight %}
 
-Pretty simple, we're just creating a `FS.File` object for each file that gets placed in the drop-zone, we then insert it into our Images collection and FSCollection takes care of everything else.
+Pretty simple, we're just creating a `FS.File` object for each file that gets placed in the drop-zone, we then insert it into our Images collection and CollectionFS takes care of everything else.
 
 After you've added the above code, dropping an image file on the drop-zone will result in a success message in the UI.
 
@@ -488,13 +490,15 @@ touch server/publications.js
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('images', function(limit) {
+  check(limit, Number);
+
   return Images.find({}, {
     limit: limit
   });
 });
 {% endhighlight %}
 
-Nothing complicated going on here, we are simply returning our images.  Also we are going to specify a limit in our publication so that the user doesn't need to download all the images in one go.  We'll implement infinite scrolling on the client instead of loading everything in one shot.
+Nothing complicated going on here, first we check that the limit parameter is a valid number then we are simply returning our images.  We are specifying a limit in our publication so that the user doesn't need to download all the images in one go.  We'll implement infinite scrolling on the client instead of loading everything in one shot.
 
 OK now let's subscribe to our publication.  Instead of subscribing to our data in the `router`, we'll do so in our template... this will make implementing the infinite scrolling a snap.
 
@@ -503,7 +507,7 @@ OK now let's subscribe to our publication.  Instead of subscribing to our data i
 touch client/templates/home/home.js
 {% endhighlight %}
 
-We'll be making use of a <a href="http://docs.meteor.com/#/full/reactivevar" target="_blank">reactive var</a> in `home.js` so we'll need to add the reactive var package.
+We'll be making use of a <a href="http://docs.meteor.com/#/full/reactivevar" target="_blank">reactive variable</a> in `home.js` so we'll need to add the reactive var package.
 
 #####Terminal
 {% highlight Bash %}
@@ -522,7 +526,7 @@ Template.home.created = function() {
   
   Deps.autorun(function() {
     Meteor.subscribe('images', self.limit.get());
-  })
+  });
 }
 
 Template.home.rendered = function() {
@@ -548,7 +552,7 @@ var incrementLimit = function(templateInstance) {
 }
 {% endhighlight %}
 
-So first off, we are setting up our subscription in the `created` event of the template.  The subscription is wrapped in `Deps.autorun` which will cause the subscription to be re-run anytime the `limit` reactive variable changes.  So basically we control the number of records that are displayed on the page by changing the `limit` reactive variable.  We set an initial value for the limit based on a Meteor settings value (which we'll add in the next step).  Reactive variables act pretty much the same as Session variables but they are scoped to a local variable instead of a global instance and thus are a little cleaner and not as likely to cause conflicts or unintended overwrites.
+So first off, we are setting up our subscription in the `created` event of the template.  The subscription is wrapped in `Deps.autorun` which will cause the subscription to be re-run anytime the `limit` reactive variable changes.  So basically we control the number of records that are displayed on the page by changing the `limit` reactive variable.  We set an initial value for the limit based on a Meteor settings value (which we'll add in the next step).  Reactive variables act pretty much the same as <a href="http://docs.meteor.com/#/full/session" target="_blank">Session</a> variables but they are scoped to a local variable instead of a global instance and thus are a little cleaner and not as likely to cause conflicts or unintended overwrites.
 
 The `Template.home.rendered` block is what updates the `limit` variable and causes more data to load when the user scrolls.  We've created a separate function, `incrementLimit` which handles the actual incrementing of the `limit` variable.  It's super simple, just adding the `recordsPerPage` `settings.json` value to the current value of `limit`.
 

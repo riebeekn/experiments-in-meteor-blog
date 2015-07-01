@@ -8,7 +8,7 @@ This is the second of a two part post on handling images in Meteor.  In this pos
 
 Some of the things we'll tackle in this post:
 
-* We'll be adding user's so that we can associate and limit uploads to signed in users.
+* We'll be adding the concept of user accounts to the application in order to associate and limit uploads to signed in users.
 * We'll allow user's to remove images they've uploaded.
 * We'll sort the displayed images so the most recently uploaded images are displayed first.
 * We'll create user-specific URL's which will display only the images associated with a particular user.
@@ -16,15 +16,17 @@ Some of the things we'll tackle in this post:
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/photo-blog" target="_blank">GitHub</a>.
 
 ##What we'll build
-We'll expand upon the photo blog we created in  <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a>.  It's a simplified version of a photo blog, similar to <a href="https://www.tumblr.com/" target="_blank">Tumblr</a>.  By the end of this post we'll have something similar to:
+In <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> we created a simplified version of a photo blog, similar to <a href="https://www.tumblr.com/" target="_blank">Tumblr</a>.  By the end of this post our application will have a few more features and look similar to:
 
 <img src="../images/posts/photo-blog-part-2/app-done.png" class="img-responsive" />
 
 ##Creating the app
-If you followed along with <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> you can continue on from the code we built out in that post.  If not and you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  Note that if you decide to skip part 1, you'll need to create a `settings.json` file.  A template of the file is included in the GitHub code under `settings.json.template`.
+If you followed along with <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> just continue on with the code you created as part of that post.  If not and you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  
+
+Note that if you decide to skip part 1, you'll need to create a `settings.json` file.  A template of the file is included in the GitHub code under `settings.json.template`.
 
 ###Clone the Repo
-If grabbing the code from GitHub instead of continuing along from part 1, first step is to clone the repo.  Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/photo-blog/tree/part-1" target="_blank">hereFIXURL</a>.
+If grabbing the code from GitHub instead of continuing along from part 1, the first step is to clone the repo.  Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/photo-blog/archive/part-1.zip" target="_blank">here</a>.
 
 #####Terminal
 {% highlight Bash %}
@@ -33,6 +35,7 @@ cd photo-blog
 {% endhighlight %}
 
 ###Start up the app
+OK, you've either gotten the code from GitHub or are using the existing code you created in Part 1, let's see where we're starting from.
 
 #####Terminal
 {% highlight Bash %}
@@ -44,11 +47,11 @@ You should now see the starting point for our application when you navigate your
 <img src="../images/posts/photo-blog-part-2/app-starting-point.gif" class="img-responsive" />
 
 ##Adding users
-The first enhancement we're going to be making is to add user's to our application.  This will allow us to restrict image uploads to user's of the application and also allow us to associate user's with the images they upload.
+The first enhancement we're going to make is to add user's to our application.  This will allow us to restrict image uploads to signed in user's and also allow us to associate user's with the images they upload.
 
 ###Adding users to the application
 
-OK, let's get users added.  Meteor makes this super simple via the built-in <a href="http://docs.meteor.com/#/full/accounts_api" target="_blank">accounts</a> functionality.
+OK, let's get started.  Meteor makes this super simple via the built-in <a href="http://docs.meteor.com/#/full/accounts_api" target="_blank">accounts</a> functionality.
 
 We'll add the <a href="https://atmospherejs.com/meteor/accounts-password" target="_blank">accounts password</a> package, along with a <a href="https://atmospherejs.com/ian/accounts-ui-bootstrap-3" target="_blank">3rd party package</a> which provides a login UI control.
 
@@ -59,7 +62,7 @@ meteor add accounts-password ian:accounts-ui-bootstrap-3
 
 By default the accounts package requires an email and password for sign up / log in.  For our purposes however we'll go with a user name instead of an email.
 
-This can be easily configured.
+Configuring this is easy.
 
 #####Terminal
 {% highlight Bash %}
@@ -89,6 +92,8 @@ With the packages and configuration in place, all we need to do is update our UI
 </template>
 {% endhighlight %}
 
+So we're just rendering the login template by adding `{% raw %}{{> loginButtons}}{% endraw %}`.
+
 Bam!  User's... done.
 
 <img src="../images/posts/photo-blog-part-2/users.png" class="img-responsive" />
@@ -101,24 +106,24 @@ Next step is to restrict our upload functionality to user's that have an account
 
 ####Updating the UI
 
-So we want to restrict our drop-zone to only appear for logged in users.  Once again Meteor makes this super simple, via the <a href="http://docs.meteor.com/#/full/template_currentuser" target="_blank">currentUser</a> object.
+So we want to restrict our image upload drop-zone to only appear for logged in users.  Once again Meteor makes this super simple, via the <a href="http://docs.meteor.com/#/full/template_currentuser" target="_blank">currentUser</a> object.
 
 #####/client/templates/home/home.html
 {% highlight HTML %}
 <template name="home">
-    <!-- show drop zone if signed in -->
-    {% raw %}{{#if currentUser}}
-        {{> dropzone}}
-    {{/if}}
+  <!-- show drop zone if signed in -->
+  {% raw %}{{#if currentUser}}
+    {{> dropzone}}
+  {{/if}}
 
-    <!-- existing images -->
-    {{#each images}}
-        {{> image}}
-    {{/each}}{% endraw %}
+  <!-- existing images -->
+  {{#each images}}
+    {{> image}}
+  {{/each}}{% endraw %}
 </template>
 {% endhighlight %}
 
-Nice, that takes care of the UI.  In cases where there is no logged in user, `currentUser` will return false and the drop-zone won't render.  `currentUser` returns true when a user is logged in, so the drop-zone will show up when a user is logged in.
+Nice, that takes care of the UI.  In cases where there is no logged in user, `currentUser` will return false and the drop-zone won't render.  Conversely `currentUser` returns true when a user is logged in, so the drop-zone will show up.
 
 ####Updating the allow rules
 We'll also want to alter the `allow` rules on the `images` collection so that we aren't relying exclusively on the UI to enforce our image upload restriction.
@@ -137,21 +142,23 @@ Images.allow({
 
 First thing we've done is to add the optional `userId` parameter to the insert and update callbacks.  The insert / update <a href="http://docs.meteor.com/#/full/allow" target="_blank">callbacks</a> can take the following parameters:
 
-* insert(userId, doc)
-* update(userId, doc, fieldNames, modifier)
+* `insert(userId, doc)`
+* `update(userId, doc, fieldNames, modifier)`
 
 We're making use of the `userId` parameter and checking that it's value is not null.  When the user attempting an upload is signed in to the application, the value of `userId` will be that user's id.  However in the case of an anonymous user (i.e. someone who has not signed in) the `userId` will be null and we reject the upload.  
 
-You can test that this works by commenting out the `{{#if currentUser}}` control statement in `home.html` and attempting to upload an image when not signed in.
+You can test that this works by commenting out the `{% raw %}{{#if currentUser}}{% endraw %}` control statement in `home.html` so that the drop-zone always appears; then attempt to upload an image when not signed in.
 
-Having a restriction in the allow rules ensures that we don't need to worry about unauthorized user's uploading images to our application even if they get around the disappearing drop-zone UI restriction we've put in place.  In general you never want to rely on the UI to enforce an access / security rule in  your application.
+<img src="../images/posts/photo-blog-part-2/upload-not-allowed.png" class="img-responsive" />
+
+Having a restriction in the allow rules ensures that we don't need to worry about unauthorized user's uploading images even if they get around the disappearing drop-zone UI.  In general you never want to rely on the UI to enforce an access / security rule.
 
 ###Associating uploaded images to users
 
-Now that we have user's, we're going to associate uploaded images with the user who uploaded the image.
+Now that we have user's, we're going to associate images to our user's.
 
 ####Resetting any existing data
-Our existing images don't have any user data associated with them, , so let's start from a clean slate.
+Any existing images in our application don't have any user data associated with them, so let's clear out our images and start from a clean slate.
 
 First reset the Mongo database and restart the application.
 
@@ -161,7 +168,7 @@ meteor reset
 meteor --settings settings.json
 {% endhighlight %}
 
-Next clear out anything in the S3 bucket:
+Next you might want to clear out anything in the S3 bucket via the AWS S3 console:
 
 <img src="../images/posts/photo-blog-part-2/clear-s3.png" class="img-responsive" />
 
@@ -190,9 +197,9 @@ Template.dropzone.events({
 });
 {% endhighlight %}
 
-So all we've done is grab the currently logged in user (via `Meteor.user()`) and then add the `username` and `_id` values of the user to the `File` object being inserted.  Simple as pie!
+So all we've done is grab the currently logged in user (via `var user = Meteor.user()`) and then add the `username` and `_id` values of the user to the `File` object being inserted (i.e. `newFile.username = user.username` and `newFile.userId = user._id`).  Simple as pie!
 
-Let's have a quick look with <a href="https://atmospherejs.com/msavin/mongol" target="_blank">Mongol</a> to see what our Images look like now.
+Sign in to the application, upload a few images and then let's have a quick look with <a href="https://atmospherejs.com/msavin/mongol" target="_blank">Mongol</a> to see what our `Images` look like in the database now.
 
 #####Terminal
 {% highlight Bash %}
@@ -243,7 +250,7 @@ Now let's update the `image.html` template file.
     <div class="col-md-12">
       <div class="image-info">
         Posted on: {% raw %}{{postDate}}{% endraw %} / 
-        Posted by: {% raw %}{{userName}}{% endraw %}
+        Posted by: {% raw %}{{username}}{% endraw %}
       </div> 
     </div>
   </div>
@@ -318,6 +325,7 @@ Now let's update the `image.html` template.
             <i class="fa fa-trash fa-2x"></i>
           </a>
         {% raw %}{{/if}}{% endraw %}
+        Posted on: {% raw %}{{postDate}} {% endraw %}/ 
         ... existing code
 {% endhighlight %}
 
@@ -420,11 +428,11 @@ Some of you astute reader's may have noticed we have a pretty stupendous securit
 
 <img src="../images/posts/photo-blog-part-2/sec-01.png" class="img-responsive" />
 
-So we can see `Bob Log` has uploaded an image and we are currently logged in as a different user `the dude`.
+So what's going on here is that `Bob Log` has uploaded an image but we are currently logged in as a different user `the dude`.
 
 Now `the dude` is a bit of a shady character and wants to mess with Bob, let's see what he can get up to.
 
-OK so first, `the dude` gets his own `userId`.  This is easily done thru the browser console.
+OK, so first `the dude` figures out what his own `userId` is.  He can easily do this thru the browser console.
 
 <img src="../images/posts/photo-blog-part-2/sec-02.png" class="img-responsive" />
 
@@ -436,7 +444,7 @@ Being the sneaky guy he is, he now changes the `userId` associated with the imag
 
 <img src="../images/posts/photo-blog-part-2/sec-04.png" class="img-responsive" />
 
-We can see that he now has the delete icon showing up on the image.
+We can see that he now has the delete icon showing up on Bob's image.
 
 Even worse he can successfully delete the image.
 
@@ -469,10 +477,10 @@ For this reason, many people <a href="https://www.discovermeteor.com/blog/meteor
 
 The counter-argument is that allow / deny rules provide a common place to define your security settings on a particular collection.
 
-I tend to favor methods over allow / deny rules but in the case of our FSCollection allow / deny rules are what works with the package.
+I tend to favor methods over allow / deny rules but in the case of our FSCollection allow / deny rules are what works with the package so we just need to be extra careful that we set them up correctly.
 
 ##Sorting images
-Only a few more enhancements to go and we'll have wrapped everything up.  One thing we want to change is the order in which images display.  Currently we are not specifying an order but we'd like to show the most recently uploaded images first.
+One thing we want to change is the order in which images display.  Currently we are not specifying an order but we'd like to show the most recently uploaded images first.
 
 So we'll need to add a sort order to both our publication and our images helper.
 
@@ -481,6 +489,8 @@ Let's start with the publication.
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('images', function(limit) {
+  check(limit, Number);
+
   return Images.find({}, {
     limit: limit,
     sort: {uploadedAt:-1}
@@ -505,10 +515,10 @@ Template.home.helpers({
 ... existing code
 {% endhighlight %}
 
-Simple, all we've done is to add the `sort` condition to the `images` helper.
+Simple, all we've done is to add the `sort` condition to the `images` helper and we now have sorted images on the client... sweet!
 
 ##Adding user specific URLs
-OK we are into the home stretch now, the final thing we want to add to our application is user specific URLs.  These display the images uploaded by a particular user.
+OK we're hitting the home stretch now, the final thing we want to add to our application is user specific URLs.  These will display only the images uploaded by a particular user.
 
 First let's update our UI, we've got a small change to make to the `image` template.
 
@@ -516,7 +526,7 @@ First let's update our UI, we've got a small change to make to the `image` templ
 {% highlight HTML %}
 ... existing code
 
-        Posted on: {{postDate}} / 
+        Posted on: {% raw %}{{postDate}}{% endraw %} / 
         Posted by: 
         <a class="user-link" href="{% raw %}{{pathFor route='userPage' username=this.username}}">
           {{username}}{% endraw %}
@@ -526,7 +536,9 @@ First let's update our UI, we've got a small change to make to the `image` templ
 ... existing code
 {% endhighlight %}
 
-The only change here, is that we've made the 'Posted by' user name a link.  We also need a new route to handle the link.
+The only change here, is that we've enclosed the 'Posted by' `{% raw %}{{username}}{% endraw %}`  field in a link.  
+
+We now need a new route to handle the link.
 
 #####/lib/router.js
 {% highlight JavaScript %}
@@ -542,7 +554,7 @@ Router.onBeforeAction('loading');
 
 So this is a simple route that appends a user name to the root URL.
 
-In order to take advantage of this new route, we'll have to change both the  subscription and the publication for images.
+In order to take advantage of this new route, we'll have to change both the  subscription and the publication.
 
 Let's start by changing the subscription.
 
@@ -556,7 +568,7 @@ Template.home.created = function() {
   
   Deps.autorun(function() {
     Meteor.subscribe('images', self.limit.get(), Router.current().params.username);
-  })
+  });
 }
 ...
 ...
@@ -569,9 +581,11 @@ Next we need to update our publication.
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('images', function(limit, username) {
+  check(limit, Number);
 
   var findQuery = {};
   if (username) {
+    check(username, String);
     findQuery = { username : username };
   }
 
@@ -582,30 +596,30 @@ Meteor.publish('images', function(limit, username) {
 });
 {% endhighlight %}
 
-Here we're checking if a `username` has been passed into the publication, and if so we filter by the `username` value in the find clause.
+Here we're checking if a `username` has been passed into the publication, and if so we filter by the `username` value in the `find` clause.
 
-With this in place we can now navigate to user specific pages.
-
-#STOPPED
-#PUT gif here
-
+With this in place we can now navigate to user specific pages.  You can test this out by clicking on a user name of an image... you'll now only see images uploaded by that user.  Clicking on the main 'Photo Gallery' link will bring back all images.
 
 ###Friendly URLs
 One thing that isn't great with our user URLs is they aren't <a href="http://en.wikipedia.org/wiki/Semantic_URL#Slug" target="_blank">slugified</a>.  This means we have ugly encoded URL's such as `http://localhost:3000/Bob%20Log`.  That `%20` is not ideal so let's slug up our URL's.
 
-We're going to be using a new `slug` for our user URL, so let's update the `router.js` first.
+We're going to be using a new field in our collection that we will call `slug` to handle the slugged routes.  So let's update the `userPage` route in `router.js` to use a similarly named parameter.
 
 #####/lib/router.js
 {% highlight JavaScript %}
+... existing code
+
 Router.route('/:userSlug', {
   name: 'userPage', 
   template: 'home'
 });
+
+Router.onBeforeAction('loading');
 {% endhighlight %}
 
-So instead of the user name field we're now making use of a `userSlug` field.
+So instead of `/:username` we're calling our route parameter `/:userSlug`.  It doesn't really matter what we call our route parameter but it can get confusing if route parameter names aren't easily associated with the database fields they refer to.
 
-This means we'll have to change our subscription and publication.
+Changing the route parameter name means we'll have to change our subscription and publication to reflect the name change.
 
 #####/client/templates/home/home.js
 {% highlight JavaScript %}
@@ -623,23 +637,25 @@ Template.home.created = function() {
 ...
 {% endhighlight %}
 
-We've changed our subscription to grab our renamed router parameter (i.e. `userSlug` instead of `username`).  Note that these changes are not necessary we could have kept the URL parameter set to `username`... but that can get kind of confusing when the parameter won't actually be the `username` so I think it's worth updating the parameter name.
+We've changed our subscription to grab our renamed router parameter (i.e. `userSlug` instead of `username`).
 
-Now for our publication.
+Now for the publication.
 
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('images', function(limit, userSlug) {
+  check(limit, Number);
 
   var findQuery = {};
   if (userSlug) {
+    check(userSlug, String);
     findQuery = { userSlug : userSlug };
   }
   ...
   ...
 {% endhighlight %}
 
-Again all we're doing is renaming the parameter and then the key change is that we are filtering on a different field, instead of `username` we are filtering on `userSlug` field.
+Again all we're doing is renaming the parameter.  A key change to make note of is that we are filtering on a different field in our `findQuery`, instead of the `username` column we are filtering on the `userSlug` field.
 
 This field isn't currently part of our `images` collection so let's change that.
 
@@ -658,9 +674,9 @@ Template.dropzone.events({
       ...
 {% endhighlight %}
 
-We're adding a new field `userSlug` to our `images` collection.
+We're adding the new `userSlug` field to our `images` collection via the `newFile.userSlug = ...` line.
 
-To create the actual slug value we're calling into a helper method.
+To create the actual slug value we're calling into a helper method which we need to create.
 
 #####Terminal
 {% highlight Bash %}
@@ -695,7 +711,7 @@ Slug.slugify = function(value) {
 }
 {% endhighlight %}
 
-This helper method is just a series of regular expressions which clean up our URL's.  This code is taken directly from this <a href="http://themeteorchef.com/recipes/slugged-routes/" target="_blank">post</a> by the <a href="http://themeteorchef.com/" target="_blank">The Meteor Chef</a>.  If you haven't checked out his tutorials I would highly recommend you do so, he's got some absolutely fantastic articles he's put together, I always jump all over his stuff when he releases a new recipe.
+This helper method is just a series of regular expressions which clean up our URL's.  This code is taken directly from <a href="http://themeteorchef.com/recipes/slugged-routes/" target="_blank">this post</a> by the <a href="http://themeteorchef.com/" target="_blank">The Meteor Chef</a>.  If you haven't checked out his tutorials I would highly recommend you do so, he's got some absolutely fantastic articles he's put together.
 
 OK, now the final step is to update the `image.html` template.
 
@@ -703,23 +719,25 @@ OK, now the final step is to update the `image.html` template.
 {% highlight HTML %}
 ...
 
-        Posted on: {{postDate}} / 
+        Posted on: {% raw %}{{postDate}}{% endraw %} / 
         Posted by: 
-        <a class="user-link" href="{{pathFor route='userPage' userSlug=this.userSlug}}">
-          {{username}}
+        <a class="user-link" href="{% raw %}{{pathFor route='userPage' userSlug=this.userSlug}}">
+          {{username}}{% endraw %}
         </a>
         ...
         ...
 {% endhighlight %}
 
-We've updated out user link to link on our slug instead of the user name.
+We've updated our user link to link on `this.userSlug` instead of the user name.
 
-Now any new images you upload will have have slugs attached, old uploads won't work as they won't have the `userSlug` attribute, so you may want to reset your Meteor DB.
+Now any new images you upload will have slugs attached, old uploads won't work as they won't have the `userSlug` attribute, so you may want to reset your Meteor DB (i.e. via `meteor reset`).
 
 With the slugs, we now get much nicer URL's with no nasty encodings.
 
 <img src="../images/posts/photo-blog-part-2/nice-slug.png" class="img-responsive" />
 
 ##Summary
+OK, that's it, we now have a functional, albeit simple photo blog.
 
-#ADD toastr options to all branches
+Thanks for reading and hope you found something useful in this two part series on uploading images to S3 via Meteor.
+
