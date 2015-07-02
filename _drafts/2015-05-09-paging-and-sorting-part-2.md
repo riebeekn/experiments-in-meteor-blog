@@ -260,6 +260,8 @@ There we go, Bob is now where he belongs.
 
 <img src="../images/posts/paging-and-sorting-part-2/good-sort.png" class="img-responsive" />
 
+#STOPPED
+
 ###Hooking up the header links
 OK, so we have our sorting working, now we just need to hook it into our header links.  Let's add some events for the links.
 

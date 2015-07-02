@@ -185,6 +185,17 @@ Meteor.publish('customers', function(skipCount) {
 
 And with that, our hard-coded page limit is gone.
 
+Another quick change we want to make is to our subscription, if you look closely when changing pages you may notice that the application briefly shows 6 records some of the time.  This is due to way Minimongo fills the same client collection from multiple subscriptions (see <a href="http://meteorpedia.com/read/Understanding_Meteor_Publish_and_Subscribe" target="_blank">here</a> for a further explanation).  The skinny is that we need to also set a limit on our subscription.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+Template.listCustomers.helpers({
+  customers: function() {
+    return Customers.find({}, {limit: parseInt(Meteor.settings.public.recordsPerPage)});
+  },
+  ...
+{% endhighlight %}
+
 ###No more faking
 As much fun as it is to type page numbers into the URL, I think we're going to want to get those buttons working... so let's get to it!
 
