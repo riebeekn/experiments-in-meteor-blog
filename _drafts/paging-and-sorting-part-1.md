@@ -280,11 +280,6 @@ OK, so our publication is all set, let's update our next link helper to take adv
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-var hasMorePages = function() {
-  var currentPage = parseInt(Router.current().params.page || 1);
-  var totalCustomers = Counts.get('customerCount');
-  return currentPage * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
-}
 
 Template.listCustomers.helpers({
 ...
@@ -297,6 +292,12 @@ Template.listCustomers.helpers({
 });
 ...
 ...
+
+var hasMorePages = function() {
+  var currentPage = parseInt(Router.current().params.page || 1);
+  var totalCustomers = Counts.get('customerCount');
+  return currentPage * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
+}
 {% endhighlight %}
 
 We've created a `hasMorePages` function that we call from within `nextPage`.  In `nextPage` if we have more pages we increment the page number otherwise we stay where we are.

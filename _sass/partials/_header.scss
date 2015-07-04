@@ -18,10 +18,16 @@ header {
 	}
 
 	h1 {
-		@include font-size(48);
-		// font-size: 48px;
-		// line-height: 48px;
+		@include font-size(44);
 		margin-top: -5px;
+		background: transparent;
+		a {
+			color: $white;
+			&:hover {
+				color: $nobel;
+				text-decoration: none;
+			}
+		}
 	}
 
 	h4 {
@@ -29,7 +35,7 @@ header {
 		padding-top: 10px;
 	}
 
-	a {
+	li a {
 		background: $gulf-stream;
 		color: $tuna !important;
 		letter-spacing: 1px;
