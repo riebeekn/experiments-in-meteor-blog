@@ -524,7 +524,7 @@ Template.home.created = function() {
   self.limit = new ReactiveVar;
   self.limit.set(parseInt(Meteor.settings.public.recordsPerPage));
   
-  Deps.autorun(function() {
+  Tracker.autorun(function() {
     Meteor.subscribe('images', self.limit.get());
   });
 }
@@ -552,7 +552,7 @@ var incrementLimit = function(templateInstance) {
 }
 {% endhighlight %}
 
-So first off, we are setting up our subscription in the `created` event of the template.  The subscription is wrapped in `Deps.autorun` which will cause the subscription to be re-run anytime the `limit` reactive variable changes.  So basically we control the number of records that are displayed on the page by changing the `limit` reactive variable.  We set an initial value for the limit based on a Meteor settings value (which we'll add in the next step).  Reactive variables act pretty much the same as <a href="http://docs.meteor.com/#/full/session" target="_blank">Session</a> variables but they are scoped to a local variable instead of a global instance and thus are a little cleaner and not as likely to cause conflicts or unintended overwrites.
+So first off, we are setting up our subscription in the `created` event of the template.  The subscription is wrapped in `Tracker.autorun` which will cause the subscription to be re-run anytime the `limit` reactive variable changes.  So basically we control the number of records that are displayed on the page by changing the `limit` reactive variable.  We set an initial value for the limit based on a Meteor settings value (which we'll add in the next step).  Reactive variables act pretty much the same as <a href="http://docs.meteor.com/#/full/session" target="_blank">Session</a> variables but they are scoped to a local variable instead of a global instance and thus are a little cleaner and not as likely to cause conflicts or unintended overwrites.
 
 The `Template.home.rendered` block is what updates the `limit` variable and causes more data to load when the user scrolls.  We've created a separate function, `incrementLimit` which handles the actual incrementing of the `limit` variable.  It's super simple, just adding the `recordsPerPage` `settings.json` value to the current value of `limit`.
 
