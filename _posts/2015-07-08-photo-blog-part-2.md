@@ -21,7 +21,7 @@ In <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> we created
 <img src="../images/posts/photo-blog-part-2/app-done.png" class="img-responsive" />
 
 ##Creating the app
-If you followed along with <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> just continue on with the code you created as part of that post.  If not and you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  
+If you followed along with <a href="/photo-blog-part-1/index.html" target="_blank">part 1</a> just continue on with the code you created in part 1.  If not and you want to jump right into part 2, you can clone part 1 from GitHub as a starting point.  
 
 Note that if you decide to skip part 1, you'll need to create a `settings.json` file.  A template of the file is included in the GitHub code under `settings.json.template`.
 
@@ -369,7 +369,7 @@ So a delete icon now appears when viewing an image uploaded by the currently log
 <img src="../images/posts/photo-blog-part-2/delete-icon.png" class="img-responsive" />
 
 ###Implementing deletion
-OK, so our UI is sorted, but if you click the delete icon you'll notice is doesn't do anything... so let's get that hooked up.
+OK, so our UI is sorted, but if you click the delete icon you'll notice it doesn't do anything... so let's get that hooked up.
 
 We'll handle the image deletion via an event handler in `image.js`.
 
@@ -477,7 +477,9 @@ For this reason, many people <a href="https://www.discovermeteor.com/blog/meteor
 
 The counter-argument is that allow / deny rules provide a common place to define your security settings on a particular collection.
 
-I tend to favor methods over allow / deny rules but in the case of our FSCollection allow / deny rules are what works with the package so we just need to be extra careful that we set them up correctly.
+I tend to favor methods over allow / deny rules.  I find I'm never completely confident when using allow / deny rules that I've actually set things up correctly and haven't missed something.
+
+In the case of FSCollection however, allow / deny rules are what works with the package so we just need to be extra careful that we set them up correctly.
 
 ##Sorting images
 One thing we want to change is the order in which images display.  Currently we are not specifying an order but we'd like to show the most recently uploaded images first.
@@ -566,7 +568,7 @@ Template.home.created = function() {
   self.limit = new ReactiveVar;
   self.limit.set(parseInt(Meteor.settings.public.recordsPerPage));
   
-  Deps.autorun(function() {
+  Tracker.autorun(function() {
     Meteor.subscribe('images', self.limit.get(), Router.current().params.username);
   });
 }
@@ -617,7 +619,7 @@ Router.route('/:userSlug', {
 Router.onBeforeAction('loading');
 {% endhighlight %}
 
-So instead of `/:username` we're calling our route parameter `/:userSlug`.  It doesn't really matter what we call our route parameter but it can get confusing if route parameter names aren't easily associated with the database fields they refer to.
+So instead of `/:username` we're calling our route parameter `/:userSlug`.  It doesn't really matter what we call our route parameter but it can get confusing if route parameter names aren't easily associated with the fields they refer to.
 
 Changing the route parameter name means we'll have to change our subscription and publication to reflect the name change.
 
@@ -629,7 +631,7 @@ Template.home.created = function() {
   self.limit = new ReactiveVar;
   self.limit.set(parseInt(Meteor.settings.public.recordsPerPage));
   
-  Deps.autorun(function() {
+  Tracker.autorun(function() {
     Meteor.subscribe('images', self.limit.get(), Router.current().params.userSlug);
   })
 }
@@ -688,7 +690,7 @@ touch client/helpers/slug.js
 {% highlight JavaScript %}
 Slug = {};
 
-// taken from http://themeteorchef.com/recipes/slugged-routes/
+// sourced from http://themeteorchef.com/recipes/slugged-routes/
 Slug.slugify = function(value) {
   // Take our passed value and format it using a series of regular expressions.
   // The solution for this was derrived from a bit of experimentation and some

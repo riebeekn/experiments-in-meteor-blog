@@ -417,6 +417,29 @@ Before moving on, let's add a new customer to our site via the add customer butt
 
 <img src="../images/posts/paging-and-sorting-part-2/bad-add.png" class="img-responsive" />
 
+Hey, that doesn't look right, why are we still seeing our list of customers?  The problem is now that we have added 3 optional parameters to our `root` route, our pattern for our `add customer` route is matching with the `root` route.  `customer` is being treated as the first optional parameter, `add` as the second optional parameter.
+
+This isn't something you'd probably ever run into with a 'real' application as you'll usually have some sort of landing page for the root of your application and won't have a bunch of optional parameters assigned to the root route, it is something to keep in mind when using optional parameters however, if you aren't careful you can get unintentional route matching going on... reword!
+
+So in order to fix this we're just going to move our customer list off the root.
+
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+... existing code
+
+Router.route('customers/:page?/:sortField?/:sortDirection?', {  
+  name: 'listCustomers',  
+  controller: CustomersListController
+});
+...
+{% endhighlight %}
+
+So all we've done is changed the URL where our customers will show up.
+
+<img src="../images/posts/paging-and-sorting-part-2/good-add.png" class="img-responsive" />
+
+ In this way we no longer have conflict with the `addCustomer` route.
+
 #STOPPED
 
 #OLD
