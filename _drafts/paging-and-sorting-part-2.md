@@ -440,8 +440,6 @@ So all we've done is changed the URL where our customers will show up.
 
  In this way we no longer have conflict with the `addCustomer` route.
 
-#STOPPED
-
 #OLD
 
 ###Hooking up the header links
@@ -461,218 +459,270 @@ Template.listCustomers.events({
     e.preventDefault();
 
     if (e.target.id === 'firstName') {
-      setSortFieldAndDirection('name_sort');
+      navigateToCustomersRoute('firstname');
     } else if (e.target.id === 'lastName') {
-      setSortFieldAndDirection('surname_sort');
+      navigateToCustomersRoute('lastname');
     } else if (e.target.id === 'email') {
-      setSortFieldAndDirection('email');
+      navigateToCustomersRoute('email');
     }
   }
 });
 
-/*******************************************
- * Some template specific private functions
- *******************************************/
- var setSortFieldAndDirection = function(sortBy) {
-  // if not currently sorting by the clicked field
-  // set the sort field to the clicked field and the
-  // sort direction to ascending... else just toggle
-  // the sort direction
-  var currentSortField = Session.get('sortField') || 'name_sort';
-  if (currentSortField !== sortBy) {
-    Session.set('sortField', sortBy);
-    Session.set('sortDirection', 1);
-  } else {
-    toggleSortDirection();
-  }
+var navigateToCustomersRoute = function(sortField) {
+  Router.go('listCustomers', {
+    page: Router.current().params.page || 1,
+    sortField: sortField,
+    sortDirection: toggleSortDirection(sortField)
+  });
 }
 
-var toggleSortDirection = function() {
-  var currentSortDirection = parseInt(Session.get('sortDirection')) || 1;
-  if (currentSortDirection === 1) {
-    Session.set('sortDirection', -1);
+var toggleSortDirection = function(sortBy) {
+  var currentSortField = Router.current().params.sortField || 'lastname';
+  if (currentSortField !== sortBy) {
+    return 'asc';
   } else {
-    Session.set('sortDirection', 1);
+    var currentSortDirection = Router.current().params.sortDirection || 'asc';
+    if (currentSortDirection === 'asc') {
+      return 'desc';
+    } else {
+      return 'asc';
+    }
   }
 }
 {% endhighlight %}
 
 OK, that's a bit of a code dump but it's all pretty straight-forward.  
 
-In the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on that, pass in the appropriate sort column to the `setSortFieldAndDirection` function.
+In the event handler we're checking which header was clicked, i.e. `e.target.id === 'firstName`, and based on that, pass in the appropriate sort column to the `navigateToCustomersRoute` function.
 
-In `setSortFieldAndDirection` we set some Session variables to keep track of the current sort field and sort direction.  We've got some  simple logic that sets the sort field Session value to the value passed in to the function (defaulting to the `name_sort` column when the `sortDirection` is `null`... for instance on the initial page load).  
+In `navigateToCustomersRoute` we just navigate to the `listCustomers` route with the appropriate parameters.  Notice we are checking whether the `page` parameter has been set or not and if not we default to page 1.  We need to explicitly set the page so that the route will be something like: `http://localhost:3000/customers/1/firstname/desc`.  If we don't explicitly set a page parameter and the user clicks a header from the default customers view, i.e. `http://localhost:3000/customers/`, we'll end up with an invalid route.  The first time a header is clicked the route will be `http://localhost:3000/customers/firstname/asc`, when it should be `http://localhost:3000/customers/1/firstname/asc`.  If the name header is clicked again, now `firstname` will be grabbed as the page parameter and we'll end up with `http://localhost:3000/customers/firstname/firstname/asc`.
 
-As far as sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction via you guessed it `toggleSortDirection`.
+We call into a separate function to determine the sort direction, if we're sorting by a new column we default to ascending otherwise we toggle the sort direction.
 
-In order for all this to work, we're going to need to update our subscription to take into account the new Session variables.
-
-#####/lib/router/customer-routes.js
-{% highlight JavaScript %}
-... existing code
-
-  subscriptions: function() {
-    var skipCount = (this.currentPage() - 1) 
-      * parseInt(Meteor.settings.public.recordsPerPage);
-    
-    var currentSortField = Session.get('sortField') || 'name_sort';
-    var currentSortDirection = parseInt(Session.get('sortDirection')) || 1;
-
-    this.customersSub = Meteor.subscribe('customers', skipCount, 
-      currentSortField, currentSortDirection);  
-  },
-...
-...
-{% endhighlight %}
-
-And with that, we are able to sort our table.
+And with that we should have our sorting all working.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort.gif" class="img-responsive" />
 
-However, you may notice something a little strange going on with the screen capture above.  If you look closely there are temporarily more than 3 records showing on our page.  This is due to the page being rendered prior to the subscription being completely ready.  What's happening is we're re-rendering the page as we grab the next 3 records from the server but we still haven't completely cleared out the existing records.  One way to deal with this would be to surround the rendering code with a ready statement, i.e.
+... but hey what's going on, Carl's not even moving, how can that be, everything worked when we were manually entering URLs, so what's going on now?
 
-#####/client/templates/customer/list-customers.html
-{% highlight HTML %}
-<template name="listCustomers">
-  <div class="row">
-    <div class="col-md-12">
-      <a class="btn btn-primary" id="btnAddCustomer">Add customer</a>
-    </div>
-  </div>
+####Some debugging
 
-  {% raw %}{{#unless ready}}        
-    {{> spinner}}      
-  {{/unless}}
-  {{#if ready}}{% endraw %}
-  <table class="table">
-    <thead>
-    ...
-    ...
-  {% raw %}{{/if}}{% endraw %}
-  <nav>
-    <ul class="pager">
+Let's add some console logging to both our server and client code to see if we can figure things out.  We'll be removing the `DEBUG` code we're adding below so feel free to just read this section and skip actually updating your own code.
+
+#####/server/publications.js
+{% highlight JavaScript %}
   ...
   ...
-{% endhighlight %}
 
-The problem with this approach is that the page will tend to "jump", with the table temporarily disappearing and the navigation buttons moving to the top of the page.
+  var sortInfo = buildSortParams(sortField, sortDirection);
 
-<img src="../images/posts/paging-and-sorting-part-2/jump.gif" class="img-responsive" />
+  var c = Customers.find({}, {
+    fields: {'name':1, 'surname':1, 'email':1},
+    limit: parseInt(Meteor.settings.public.recordsPerPage),
+    skip: skipCount,
+    sort: buildSortParams(sortField, sortDirection)
+  });
 
-Instead we'll apply the same limit filtering to our `find` call in the client as we do on the server.  This will ensure that only the correct number of records ever appeara.
+  // DEBUG
+  var sortKey = Object.keys(sortInfo)[0];
+  var sortValue = sortInfo[sortKey];
+  var fetched = c.fetch();
 
-#####/client/templates/customers/list-customers.js
-{% highlight JavaScript %}
-... existing code
+  console.log('*** RETURNING ***');
+  console.log("* Sort Key: '" + sortKey + "' Sort Value: '" + sortValue + "'");
+  console.log(c.fetch());
 
-Template.listCustomers.helpers({
-  customers: function() {
-    return Customers.find({}, {
-      limit: parseInt(Meteor.settings.public.recordsPerPage)
-    });
-  },
-  prevPage: function() {
-...
-...
-{% endhighlight %}
-
-And now we are all good.
-
-<img src="../images/posts/paging-and-sorting-part-2/all-good.gif" class="img-responsive" />
-
-###Removing duplicate code
-We've got a little bit of duplication going on in `list-customers.js` and `customer-routes.js` so let's refactor the common code out.
-
-#####Terminal
-{% highlight Bash %}
-touch lib/customer-sort-settings.js
-{% endhighlight %}
-
-#####/lib/customer-sort-settings.js
-{% highlight JavaScript %}
-CustomerSortSettings = {};
-
-var SORT_FIELD = 'customerSortField';
-var SORT_DIRECTION = 'customerSortDirection';
-
-CustomerSortSettings.sortField = function() {
-  return Session.get(SORT_FIELD) || 'name_sort';
-}
-
-CustomerSortSettings.sortDirection = function() {
-  return parseInt(Session.get(SORT_DIRECTION)) || 1;
-}
-
-CustomerSortSettings.setSortFieldAndDirection = function(sortBy) {
-  // if not currently sorting by the clicked field
-  // set the sort field to the clicked field and the
-  // sort direction to ascending... else just toggle
-  // the sort direction
-  if (CustomerSortSettings.sortField() !== sortBy) {
-    Session.set(SORT_FIELD, sortBy);
-    Session.set(SORT_DIRECTION, 1);
-  } else {
-    toggleSortDirection();
-  }
-}
-
-var toggleSortDirection = function() {
-  if (CustomerSortSettings.sortDirection() === 1) {
-    Session.set(SORT_DIRECTION, -1);
-  } else {
-    Session.set(SORT_DIRECTION, 1);
-  }
-}
-{% endhighlight %}
-
-First we're just setting up some constants for the sort field and sort direction Session variable keys.  We've also changed the keys to be a little more specific, i.e. `customerSortField` instead of `sortField`.  In general the more specific a Session key the better.  As your application grows if you use very generic Session keys there is a chance you'll unintentionally re-use a key for more than one thing, and in the process introduce all sorts of nasty, hard to track down bugs. 
-
-After dealing with the Session keys, the next bit is just code we've moved out of the router that grabs the current sort field and direction.  Next we've  moved out from `list-customers.js` the logic that sets the Session variables.
-
-As a result we can remove much of the code in `list-customers.js`, just keeping the event handler for the headers.
-
-#####/client/templates/customers/list-customer.js
-{% highlight JavaScript %}
-... existing code
-
-Template.listCustomers.events({
-  'click #btnAddCustomer': function(e) {
-    e.preventDefault();
-
-    Router.go('addCustomer', {page: Router.current().params.page});
-  },
-  'click #firstName,#lastName,#email': function(e) {
-    e.preventDefault();
-
-    if (e.target.id === 'firstName') {
-      CustomerSortSettings.setSortFieldAndDirection('name_sort');
-    } else if (e.target.id === 'lastName') {
-      CustomerSortSettings.setSortFieldAndDirection('surname_sort');
-    } else if (e.target.id === 'email') {
-      CustomerSortSettings.setSortFieldAndDirection('email');
-    }
-  }
+  return c;
 });
 {% endhighlight %}
 
-Much cleaner without the private functions in there!  Now let's change the router, just the subscription section needs to change.
+OK, we're just throwing both our sort parameters and the records returned from the publication into the console.
 
-#####/lib/router/customer-routes.js
+We'll do something similar with our subscription:
+
+#####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-... existing code
-
-  subscriptions: function() {
-    var skipCount = (this.currentPage() - 1) 
-      * parseInt(Meteor.settings.public.recordsPerPage);
-    
-    this.customersSub = Meteor.subscribe('customers', skipCount, 
-      CustomerSortSettings.sortField(), CustomerSortSettings.sortDirection());  
+Template.listCustomers.helpers({
+  customers: function() {
+    var c = Customers.find({}, {limit: parseInt(Meteor.settings.public.recordsPerPage)});
+    console.log(c.fetch());
+    return c;
   },
-...
-...
+  ...
+  ...
 {% endhighlight %}
 
-And with that the refactoring is complete... now we're ready for one final step.
+Now with that all in place let's see what happens when first click the first name header.
+
+<img src="../images/posts/paging-and-sorting-part-2/first-click-server.png" class="img-responsive" />
+
+So the output of our publication is what we would expect, we are getting 3 records and the records are sorted by first name ascending.
+
+<img src="../images/posts/paging-and-sorting-part-2/first-click-client.png" class="img-responsive" />
+
+What's up with the client thou?  We have the expected 3 records but they look to be getting sorted in descending order.  Very strange, let's click the header again and see what happens.
+
+<img src="../images/posts/paging-and-sorting-part-2/second-click-server.png" class="img-responsive" />
+
+Again the publication looks a-ok.  We get 3 records sorted by first name descending.  How about the client?
+
+<img src="../images/posts/paging-and-sorting-part-2/second-click-client.png" class="img-responsive" />
+
+Once again we see the expected 3 records on the client, but they are ordered... randomly?
+
+So what's going on?  The problem is that the sort order of a publication does not guarantee anything on the client.  The sorting in the publication only ensures that the correct records are sent over to the client.  On the client end we need to once again explicitly sort the records we get from the publication to ensure they display in the correct order.
+
+`Any explanation for why when enter URL explicity it works????`
+
+####Sorting on the client
+So now that we've figured out that we'll have to apply our sort parameters on both the server and the client, we should first suck our sort parameter logic into a common function we can access on both the client and server.
+
+#####Terminal
+{% highlight Bash %}
+mkdir lib/helpers
+touch lib/helpers/customer-sort-settings.js
+{% endhighlight %}
+
+#####/lib/helpers/customer-sort-settings.js
+{% highlight JavaScript %}
+CustomerSortSettings = {};
+
+CustomerSortSettings.build = function(sortField, sortDirection) {
+  var sortParams = {};
+  
+  var direction = sortDirection || 1;
+  if (direction === 'desc') {
+    direction = -1;
+  } else {
+    direction = 1;
+  }
+
+  var field = sortField || 'surname_sort';
+  if (sortField === 'firstname') {
+    field = 'name_sort';
+  } else if (sortField === 'lastname') {
+    field = 'surname_sort';
+  } else if (sortField === 'email') {
+    field = 'email';
+  } 
+
+  sortParams[field] = direction;
+
+  return sortParams;
+}
+{% endhighlight %}
+
+All we've done here is to copy the sort code pretty much verbatim out of `publication.js` and into a helper function in the `\lib` directory so that it can be accessed both client and server side.
+
+So let's remove the debug code from our publication and make use of our new `customer-sort-settings.js` helper.
+
+#####/server/publications.js
+{% highlight JavaScript %}
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  check(skipCount, Number);
+  if (sortField) {
+    check(sortField, String);
+  }
+  if (sortDirection) {
+    check(sortDirection, String);
+  }
+
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+
+  return Customers.find({}, {
+    fields: {
+      'name':1, 'name_sort':1, 
+      'surname':1, 'surname_sort':1,
+      'email':1
+    },
+    limit: parseInt(Meteor.settings.public.recordsPerPage),
+    skip: skipCount,
+    sort: CustomerSortSettings.build(sortField, sortDirection)
+  });
+});
+{% endhighlight %}
+
+So we've removed the code that builds the sort parameters and instead are calling into `CustomerSortSettings.build...`.  We're also now returning the sort fields (i.e. `name_sort` and `surname_sort`) as we'll now need those on the client to perform our client sort.
+
+So let's remove the debug code from the client and perform a client side sort.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+Template.listCustomers.helpers({
+  customers: function() {
+    return Customers.find({}, {
+      limit: parseInt(Meteor.settings.public.recordsPerPage),
+      sort: CustomerSortSettings.build(
+        Router.current().params.sortField || 'lastname', 
+        Router.current().params.sortDirection || 'asc')
+    });
+  },
+  ...
+  ...
+{% endhighlight %}
+
+Super easy, we've just added a sort to our `find()` call which makes use of the helper we created earlier.
+
+One thing worth cleaning up is the minor logic around the default sort field and direction, we'll pull that into `CustomerSortSettings` along with the sort direction toggle.
+
+#####/lib/helpers/customer-sort-settings.js
+{% highlight JavaScript %}
+...
+...
+
+CustomerSortSettings.sortDirection = function() {
+  return Router.current().params.sortDirection || 'asc';
+}
+
+CustomerSortSettings.sortField = function() {
+  return Router.current().params.sortField || 'lastname';
+}
+
+CustomerSortSettings.toggleSortDirection = function(sortBy) {
+  if (this.sortField() !== sortBy) {
+    return 'asc';
+  } else {
+    if (this.sortDirection() === 'asc') {
+      return 'desc';
+    } else {
+      return 'asc';
+    }
+  }
+}
+{% endhighlight %}
+
+OK, again we're essentially just moving code around, copying code from `list-customers.js` into our helper class.
+
+Now we can update `list-customers`.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+Template.listCustomers.helpers({
+  customers: function() {
+    return Customers.find({}, {
+      // limit: parseInt(Meteor.settings.public.recordsPerPage),
+      sort: CustomerSortSettings.build(
+        CustomerSortSettings.sortField(), 
+        CustomerSortSettings.sortDirection())
+    });
+  },
+  ...
+  ...
+
+var navigateToCustomersRoute = function(sortField) {
+  Router.go('listCustomers', {
+    page: Router.current().params.page || 1,
+    sortField: sortField,
+    sortDirection: CustomerSortSettings.toggleSortDirection(sortField)
+  });
+}
+{% endhighlight %}
+
+OK, so in our `find` call we now get the sort direction and field from the helper.
+
+In the `navigate...` function we now call into the toggleSortDirection that we've moved out of `list-customers` and into the helper.
 
 ###Adding a sort indicator
 It would be nice to have a sort indicator to provide some visual feedback to the user regarding how the table is currently sorted.  We'll use <a href="http://fortawesome.github.io/Font-Awesome/" target="_blank">font awesome</a> icons to indicate the sort direction.  A <a href="https://atmospherejs.com/natestrauser/font-awesome" target="_blank">package</a> is available, so lets get that added.
@@ -761,17 +811,13 @@ All we're doing is calling into a new function we've created in `customer-sort-s
 ... existing code
 
 CustomerSortSettings.getSortIconClass = function(element) {
-  if (CustomerSortSettings.sortField() === element) {
-    return CustomerSortSettings.sortDirection() === -1 ? 
+  if (this.sortField() === element) {
+    return this.sortDirection() === "asc" ? 
       "fa fa-sort-asc" : "fa fa-sort-desc";
   } else {
     return "fa fa-sort";
   }
 }
-
-var toggleSortDirection = function() {
-  ...
-  ...
 {% endhighlight %}
 
 Pretty simple, if the passed in element is the current sort field, we return the `fa-sort-asc` or `fa-sort-desc` icon class based on the current sort direction.  Otherwise we return the double-arrow default sort icon, i.e. `fa-sort`.
@@ -781,4 +827,4 @@ And with that... sorting, paging, icons... done!
 
 <img src="../images/posts/paging-and-sorting-part-2/done.gif" class="img-responsive" />
 
-Thanks for reading and hope you enjoyed getting sorted!
+Thanks for reading and hope this series of posts helped you get sorted (ha, ha, sorry... bad jokes are the only ones I got).
