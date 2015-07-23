@@ -38,7 +38,6 @@ As far as packages go, we've added:
 * <a href="https://atmospherejs.com/iron/router" target="_blank">Iron Router</a> - to provide routing functionality.
 * <a href="https://atmospherejs.com/twbs/bootstrap" target="_blank">Bootstrap</a> - for some simple styling (note see this <a href="http://www.manuel-schoebel.com/blog/meteorjs-and-twitter-bootstrap---the-right-way" target="_blank">article</a> for better way of adding Bootstrap in a production application).
 * <a href="https://atmospherejs.com/sacha/spin" target="_blank">Spin</a> - To provide a nice waiting indicator.
-* <a href="https://atmospherejs.com/anti/fake" target="_blank">Fake</a> - To help create some fixture data.
 
 <a href="https://atmospherejs.com/meteor/autopublish" target="_blank">Autopublish</a>  and <a href="https://atmospherejs.com/meteor/insecure" target="_blank">Insecure</a> have been removed.
 
@@ -96,6 +95,12 @@ So let's update our publication to do just that.
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('customers', function(skipCount) {
+  var positveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positiveIntegerCheck);
+  
   return Customers.find({}, {
     limit: 3, // records to show per page
     skip: skipCount
@@ -105,7 +110,11 @@ Meteor.publish('customers', function(skipCount) {
 
 If you check out the app in your browser, you'll now see only 3 records being returned.
 
-There's nothing too complicated about the publication code, we're specifying the number of records to return via the `limit: 3` parameter in the `find()` call.  The skip value is the number of records to skip over and is determined by the `skipCount` parameter we'll pass to the publication.  Since we aren't currently passing anything to the `skipCount` , the value of `skipCount` will be 'undefined' and therefore no records will be skipped over thus we're currently grabbing the first 3 records in the collection.
+There's nothing too complicated about the publication code, first we're performing a check on the `skipCount` parameter.  The <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a> has a great article on <a href="http://themeteorchef.com/snippets/using-the-check-package/" target="_blank">using the check package</a>, and why it's important, check it out!
+
+In any case we could just perform a simple check on the `skipCount`, something like `check(skipCount, Number)` but we can get more specific than that.  We know the `skipCount` should be an Integer and greater than or equal to 0, so we create a positive integer function to validate the 'skipCount'.
+
+Next we're specifying the number of records to return via the `limit: 3` parameter in the `find()` call.  The skip value is the number of records to skip over and is determined by the `skipCount` parameter we'll pass to the publication.  Since we aren't currently passing anything to the `skipCount` , the value of `skipCount` will be 'undefined' and therefore no records will be skipped over thus we're currently grabbing the first 3 records in the collection.
 
 Let's get that `skipCount` variable doing something for us, we'll pass a `page` parameter into the existing subscription.  The subscription call is in our router, let's update it to pass down a `skipCount` to the publication.
 
@@ -123,7 +132,9 @@ Router.route('/:page?', {
 ...
 {% endhighlight %}
 
-What we've done is add some additional logic to our `waitOn` function.  
+First we've changed our route from `/` to `/:page?`, this indicates there is an optional `page` parameter that are route can consume and match on.
+
+Then what we've done is add some additional logic to our `waitOn` function.  
 
 First we calculate the current page.  This is done by grabbing the current page from the URL if it's present (i.e. the URL for page 2 would be `http://localhost:3000/2`), otherwise we default to the first page.
 
@@ -176,6 +187,12 @@ Router.route('/:page?', {
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('customers', function(skipCount) {
+  var positveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positveIntegerCheck);
+
   return Customers.find({}, {
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount
@@ -184,17 +201,6 @@ Meteor.publish('customers', function(skipCount) {
 {% endhighlight %}
 
 And with that, our hard-coded page limit is gone.
-
-Another quick change we want to make is to our subscription, if you look closely when changing pages you may notice that the application briefly shows 6 records some of the time.  This is due to way Minimongo fills the same client collection from multiple subscriptions (see <a href="http://meteorpedia.com/read/Understanding_Meteor_Publish_and_Subscribe" target="_blank">here</a> for a further explanation).  The skinny is that we need to also set a limit on our subscription.
-
-#####/client/templates/customers/list-customers.js
-{% highlight JavaScript %}
-Template.listCustomers.helpers({
-  customers: function() {
-    return Customers.find({}, {limit: parseInt(Meteor.settings.public.recordsPerPage)});
-  },
-  ...
-{% endhighlight %}
 
 ###No more faking
 As much fun as it is to type page numbers into the URL, I think we're going to want to get those buttons working... so let's get to it!
@@ -266,6 +272,12 @@ Meteor.publish('customers', function(skipCount) {
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
   });
+  
+  var positveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positveIntegerCheck);
 
   return Customers.find({}, {
     limit: parseInt(Meteor.settings.public.recordsPerPage),
@@ -349,13 +361,6 @@ We can now update `list-customers.js`.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-var hasMorePages = function() {
-  var totalCustomers = Counts.get('customerCount');
-  return Router.current().currentPage() 
-    * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
-}
-
-
 Template.listCustomers.helpers({
   customers: function() {
     return Customers.find();
@@ -376,12 +381,18 @@ Template.listCustomers.events({
   'click #btnAddCustomer': function(e) {
     e.preventDefault();
 
-    Router.go('addCustomer', {page: Router.current().params.page});
+    Router.go('addCustomer');
   }
 });
+
+var hasMorePages = function() {
+  var totalCustomers = Counts.get('customerCount');
+  return Router.current().currentPage() 
+    * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
+}
 {% endhighlight %}
 
-Nothing special going on here, we've just replaced the locally calculated ` currentPage` code with calls to the router defined function, i.e. `Router.current().currentPage()`.
+Nothing special going on here, everywhere we were calculating the current page value we've now just removed the locally calculated `currentPage` code with calls to the router defined function, i.e. `Router.current().currentPage()`.
 
 The last thing to update is `list-customers.html`, we need it to take into account our ready state.
 
