@@ -23,7 +23,6 @@ Note, if you aren't familiar with Git and / or don't have it installed you can d
 #####Terminal
 {% highlight Bash %}
 git clone -b part-0 https://github.com/riebeekn/paging-and-sorting.git
-cd paging-and-sorting
 {% endhighlight %}
 
 ###A quick over-view of where we're starting from
@@ -45,6 +44,7 @@ As far as packages go, we've added:
 
 #####Terminal
 {% highlight Bash %}
+cd paging-and-sorting
 meteor
 {% endhighlight %}
 
@@ -113,12 +113,12 @@ The first thing we'll do is to update the UI.  We'll add previous and next links
 </template>
 {% endhighlight %}
 
-Pretty simple, at the bottom of our template we've added HTML that corresponds to a <a href="http://getbootstrap.com/components/#pagination-pager" target="_blank">Bootstrap pager</a>.  We've got <a href="http://docs.meteor.com/#/full/spacebars" target="_blank">spacebar</a> directives defined for both the classes to apply to the previous and next buttons as well as the URL's for the buttons.
+Pretty simple, at the bottom of our template we've added HTML that corresponds to a <a href="http://getbootstrap.com/components/#pagination-pager" target="_blank">Bootstrap pager</a>.  We've got <a href="http://docs.meteor.com/#/full/spacebars" target="_blank">spacebar</a> directives defined for the classes to apply to the previous and next buttons as well as the URL's for the buttons.
 
 Eventually we'll hook up the `{% raw %}{{prevPageClass}}{% endraw %}` and `{% raw %}{{nextPageClass}}{% endraw %}` class directives so they disable the buttons where appropriate (i.e. the previous button when on the first page of results).  Likewise the `{% raw %}{{prevPage}}{% endraw %}`  and `{% raw %}{{nextPage}}{% endraw %}` directives will represent the URL for the next or previous page.
 
 ###Fake it until you make it
-So our buttons don't do anything yet, let's start out by coming up with a simplified paging implementation, just to get a basic working example.  We'll then refactor it to something more complete.
+So our buttons don't do anything yet, let's start out by coming up with a simplified paging implementation, just to get a basic working example.  We'll then refactor to something more complete.
 
 We have an existing customers publication which needs to change, we're going to want to do two things:
 
@@ -145,11 +145,11 @@ Meteor.publish('customers', function(skipCount) {
 
 There's nothing too complicated about the publication code, let's go through it step by step.  
 
-In our function definition we've added a `skipCount` parameter, the first thing we do with it is to perform a validation check on the parameter.  
+In our function definition we've added a `skipCount` parameter, the first thing we do is perform a validation check on the parameter.  
 
-The <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a> has a great article on <a href="http://themeteorchef.com/snippets/using-the-check-package/" target="_blank">using the check package</a>, and why it's important, check it out!
+The <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a> has a great article on <a href="http://themeteorchef.com/snippets/using-the-check-package/" target="_blank">using the check package</a> for parameter validation, and why it's important, check it out!
 
-We could perform a simple check on `skipCount`, something like `check(skipCount, Number)` but we can get more specific than that.  We know the `skipCount` should be an `Integer` and greater than or equal to 0, so we create a positive integer function to validate the `skipCount`.
+We could perform a simple check on `skipCount`, something like `check(skipCount, Number)` but we can get more specific.  We know the `skipCount` should be an `Integer` and greater than or equal to 0 (i.e. for the first page of records we'll be skipping no results, for subsequent pages we'll be skipping a positive number of results based on the page and number of records per page), so we create a positive integer function to validate the `skipCount`.
 
 Next we perform a find query on our customers, restricting the number of records to return via the `limit: 3` statement.  
 
@@ -196,6 +196,8 @@ With the above changes, we can now switch the page manually by entering a page n
 <img src="../images/posts/paging-and-sorting-part-1/manual-page.gif" class="img-responsive" />
 
 OK, so not a bad job of faking it! Note that since we aren't applying a sort order to our records, they're going to come out in whatever order they are in the database.  In part 2 when we add sorting we'll address the ordering of records.  
+
+####A quick refactor
 
 Before moving on, let's perform a small refactoring, hard-coding the number of records to display per page (i.e. 3) in the code doesn't seem like the best idea.  There are a number of approaches we could take to handle this, the option we'll go with is to place the value in a `settings.json` file.
 
@@ -322,9 +324,9 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-So not a ton of changes, we've just wrapped things in `autorun` so that when the page parameter changes `autorun` will pick up on that and the subscription gets refreshed.
+Here we've just wrapped out code inside an `autorun`, so when the page parameter changes, `autorun` will pick up on that and the subscription gets refreshed.
 
-Note, we need to store an instance of the template in a variable, i.e. `var template = this;` as the value of `this` will change within the `autorun` function so we won't be able to get at the template instance if we don't store it prior to entering the function.
+Note, we need to store an instance of the template, i.e. `var template = this;` prior to entering the `autorun` function as the value of `this` will change within the function, so we won't be able to get at the template instance if we don't store it.
 
 So that's all good, but we also have an issue with our next page functionality... you can probably guess where the current implementation falls down.
 
@@ -363,7 +365,7 @@ Meteor.publish('customers', function(skipCount) {
 });
 {% endhighlight %}
 
-Pretty neat, inside our existing `customers` publication we can also publish the count.  The `noReady` flag indicates that there is more data than just the count being sent down the line.  The <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> documentation contains more details, but basically we don't want our subscription thinking all the data is ready when we've still got some more data to retrieve.
+Pretty neat!  Inside our existing `customers` publication we can also publish the count via the `Counts...` statement.  The `noReady` flag indicates there is more data than just the count being sent down the line.  The <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> documentation contains more details, but basically we don't want our subscription thinking all the data is ready when we've still got some more data to retrieve.
 
 OK, so our publication is all set, let's update our `nextPage` helper to take advantage of our newly acquired count.
 
@@ -451,7 +453,7 @@ var currentPage = function() {
 }
 {% endhighlight %}
 
-Nothing special going on here, where we were previously calculating the current page value in multiple places we now just call out to the `currentPage` function we've defined.  Considering `currentPage` is a one-liner you could argue that it's not worth creating a separate function for it... it contains some (albeit minor) logic however so I feel it's worthwhile splitting it out to it's own function.
+Nothing special going on here, where we were previously calculating the current page value in multiple places we now just call out to the `currentPage` function we've defined.  Considering `currentPage` is a one-liner you could argue that it's not worth creating a separate function for it... it contains some (albeit minor) logic however so I feel it's worthwhile splitting it out.
 
 ###Adding a wait indicator
 At this point the core implementation is done, but there's some gravy we can add to make things a little more user friendly.
