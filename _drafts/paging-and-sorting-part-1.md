@@ -3,9 +3,9 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 1
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In this post we'll see how we can implement paging in Meteor.  In a follow-up post we will look at sorting.
 ---
-In this post we are going to take a look at how to page data in Meteor, in part 2 we'll add sorting.
+In this post we're going to take a look at how to page data in Meteor.  In an upcoming part 2 we'll add sorting.
 
-These days <a href="http://www.smashingmagazine.com/2013/05/03/infinite-scrolling-lets-get-to-the-bottom-of-this/" target="_blank">infinite scrolling</a> is a popular way to achieve paging but isn't always appropriate for every situation.  Infinite scrolling works great for a news feed or user posts, but not so much for something like a customer list.
+These days <a href="http://www.smashingmagazine.com/2013/05/03/infinite-scrolling-lets-get-to-the-bottom-of-this/" target="_blank">infinite scrolling</a> is a popular way to achieve paging but isn't always appropriate for every situation.  Infinite scrolling works great for a news feed or user posts, but not so much for something like a customer list.  So we'll be looking at how we can go about implementing traditional style paging.
 
 ##What we'll build
 To demonstrate paging we're going to build a simple list of customers.
@@ -18,7 +18,7 @@ If you'd rather grab the source code directly rather than follow along, it's ava
 As a starting point, we'll clone a version of the application from GitHub.  This initial version contains an unpaged list of customers and the ability to add more customers.
 
 ###Clone the Repo
-Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/paging-and-sorting/tree/part-0" target="_blank">here</a>.  Otherwise let's gitty up (yes that's supposed to be a joke).
+Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/paging-and-sorting/archive/part-0.zip">here</a>.  Otherwise let's gitty up (and yes that's supposed to be a joke).
 
 #####Terminal
 {% highlight Bash %}
@@ -31,7 +31,7 @@ Open up the code in your text editor of choice and you'll see a pretty standard 
 
 <img src="../images/posts/paging-and-sorting-part-1/project-structure.png" class="img-responsive" />
 
-We'll primarily be dealing with the customer templates / helper files as well as the `customer-routes.js` file.
+We'll primarily be dealing with `list-customers.js`, `list-customers.html` and `publications.js`.
 
 As far as packages go, we've added: 
 
@@ -53,12 +53,12 @@ You should now see the starting point for our application when you navigate your
 <img src="../images/posts/paging-and-sorting-part-1/app-starting-point.png" class="img-responsive" />
 
 ##A quick diversion
-When first building out this tutorial I was using standard router subscriptions but after some experimentation I found template level subscriptions seemed to be a bit cleaner.  
+Initially I placed the client subscription code in the router.  After some experimentation, I've found a template level subscription seems a bit cleaner.  This also fits in well with the fact the customer data is only required in a single template.  
 
-In general it seems moving subscriptions out of the router is gaining traction as a best practice in Meteor, so instead of just updating the initial version of the application I figured why not start the tutorial off by switching up our subscription.
+So... let's start off the tutorial by switching up where our subscription is happening.
 
 ###Moving the subscription into the template
-So first thing we'll update the router code... basically simplifying it by removing the subscription.
+So first thing, we'll update the router code... simplifying it by removing the subscription.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -71,7 +71,7 @@ Router.route('/customer/add', {
 });
 {% endhighlight %}
 
-Since our subscription is gone, we won't see any data in our application anymore, so let's add the subscription to the template.
+With the subscription gone, we won't see any data in our application anymore, so let's add the subscription to the template.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -84,13 +84,13 @@ Template.listCustomers.helpers({
   ...
 {% endhighlight %}
 
-Voila!  We've now moved the subscription logic out of the router... how simple was that?  Pretty simple.  For a great explanation of template level subscriptions check out <a href="https://www.discovermeteor.com/blog/template-level-subscriptions/" target="_blank">this</a> great Discover Meteor blog post.
+Voila!  We've now moved the subscription logic out of the router... how simple was that?  Pretty simple.  For a great explanation of template level subscriptions check out this great <a href="https://www.discovermeteor.com/blog/template-level-subscriptions/" target="_blank">great Discover Meteor blog post</a>.
 
 ##Adding paging
 OK, with that out of the way, let's get onto this paging thing!
 
 ###Updating the UI
-The first thing we'll do to get our paging rolling is to update the UI.  We'll add previous and next links at the bottom of our table.
+The first thing we'll do is to update the UI.  We'll add previous and next links at the bottom of our table.
 
 #####/client/templates/customers/list-customers.html
 {% highlight HTML %}
@@ -115,12 +115,12 @@ The first thing we'll do to get our paging rolling is to update the UI.  We'll a
 
 Pretty simple, at the bottom of our template we've added HTML that corresponds to a <a href="http://getbootstrap.com/components/#pagination-pager" target="_blank">Bootstrap pager</a>.  We've got <a href="http://docs.meteor.com/#/full/spacebars" target="_blank">spacebar</a> directives defined for both the classes to apply to the previous and next buttons as well as the URL's for the buttons.
 
-The class directives will disable the buttons where appropriate (i.e. the previous button when on the first page of results), and the URL's correspond to the URL for the next or previous page.
+Eventually we'll hook up the `{% raw %}{{prevPageClass}}{% endraw %}` and `{% raw %}{{nextPageClass}}{% endraw %}` class directives so they disable the buttons where appropriate (i.e. the previous button when on the first page of results).  Likewise the `{% raw %}{{prevPage}}{% endraw %}`  and `{% raw %}{{nextPage}}{% endraw %}` directives will represent the URL for the next or previous page.
 
 ###Fake it until you make it
-So our buttons don't do anything yet, let's start out by coming up with a simplified implementation just to get a basic working example, we'll then refactor it to something more appropriate.
+So our buttons don't do anything yet, let's start out by coming up with a simplified paging implementation, just to get a basic working example.  We'll then refactor it to something more complete.
 
-We have an existing customers publication which we will need to change, we're going to want to do two things:
+We have an existing customers publication which needs to change, we're going to want to do two things:
 
 * Restrict the number of records returned.
 * Skip the first "x" records depending on what page is being displayed.
@@ -143,17 +143,25 @@ Meteor.publish('customers', function(skipCount) {
 });
 {% endhighlight %}
 
-There's nothing too complicated about the publication code, first we're performing a validation check on the `skipCount` parameter.  The <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a> has a great article on <a href="http://themeteorchef.com/snippets/using-the-check-package/" target="_blank">using the check package</a>, and why it's important, check it out!
+There's nothing too complicated about the publication code, let's go through it step by step.  
 
-In any case we could just perform a simple check on the `skipCount`, something like `check(skipCount, Number)` but we can get more specific than that.  We know the `skipCount` should be an Integer and greater than or equal to 0, so we create a positive integer function to validate the 'skipCount'.
+In our function definition we've added a `skipCount` parameter, the first thing we do with it is to perform a validation check on the parameter.  
 
-Next we're performing a find query and specifying the number of records to return via the `limit: 3` parameter.  The skip value serves as the number of records to skip over and is determined by the `skipCount` parameter we validated.  Since we aren't currently passing anything to the `skipCount` , the validation of `skipCount` will fail and we won't see anything in our browser.
+The <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a> has a great article on <a href="http://themeteorchef.com/snippets/using-the-check-package/" target="_blank">using the check package</a>, and why it's important, check it out!
+
+We could perform a simple check on `skipCount`, something like `check(skipCount, Number)` but we can get more specific than that.  We know the `skipCount` should be an `Integer` and greater than or equal to 0, so we create a positive integer function to validate the `skipCount`.
+
+Next we perform a find query on our customers, restricting the number of records to return via the `limit: 3` statement.  
+
+The `skip` value in the find query indicates the number of records to skip over and is set to whatever is passed into the `skipCount` parameter.  
+
+Since we aren't currently passing anything to `skipCount`, the validation will fail and we won't see any records showing up in our browser.
 
 One thing to note is that validation failures with `check` don't bubble up to the browser, you can see the error in the server console however:
 
 <img src="../images/posts/paging-and-sorting-part-1/check-error.png" class="img-responsive" />
 
-Let's get that `skipCount` variable sorted so that we can get some records showing up again.  We'll pass a `page` parameter into the `skipCount`, and the `page` parameter will need to come from our URL, so let's update the route.
+Let's get that `skipCount` variable sorted so we can get some records showing.  We'll pass a `page` parameter in from the client, the `page` value will come from the browser URL so first let's update the route.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -163,9 +171,9 @@ Router.route('/:page?', {
 ...
 {% endhighlight %}
 
-OK, all we've done is changed our route from `/` to `/:page?`, this indicates there is an optional `page` parameter that are route can consume and match on.
+OK, all we've done is change our route from `/` to `/:page?`.  This indicates there is an optional `page` parameter that the route can consume and match on.
 
-Next we need to update the subscription. 
+Next we need to update the subscription to make use of the new route parameter. 
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -183,20 +191,20 @@ Nothing too tricky, first we calculate the current page.  This is done by grabbi
 
 The skip count is determined by taking the zero-based index (i.e. if we're on the first page, the zero based index for that page is 0) and multiplying it by the number of records to display per page.  So for the first page (0 * 3) we skip no records, for the second page (1 * 3) we skip 3 records and so on.
 
-With the change to the router in place, we can now switch the page manually by entering a page number into the URL.  Without a page number or when the page number is "1" the first page is displayed, entering "2" displays the second page, and anything larger than 2 is going to display an empty table as we only have 6 records in our database.
+With the above changes, we can now switch the page manually by entering a page number into the URL.  Without a page number or when the page number is "1" the first page of records is displayed, entering "2" displays the second page, and anything larger than 2 is going to display an empty table as we only have 6 records in our database.
 
 <img src="../images/posts/paging-and-sorting-part-1/manual-page.gif" class="img-responsive" />
 
-OK, so not a bad job of faking it! Note that since we aren't applying a sort order to our records, they're going to come out in whatever order they are in the database.  In part 2 when we add sorting we'll address this.  In any case, paging is working so now we just need to get it hooked up to the next and previous buttons.
+OK, so not a bad job of faking it! Note that since we aren't applying a sort order to our records, they're going to come out in whatever order they are in the database.  In part 2 when we add sorting we'll address the ordering of records.  
 
-Before doing so, let's perform a small refactoring, hard-coding the number of records to display per page (i.e. 3) in the code doesn't seem like the best idea.  There are a number of approaches we could take to handle this, the option we'll go with is to place the value in a `settings.json` file.
+Before moving on, let's perform a small refactoring, hard-coding the number of records to display per page (i.e. 3) in the code doesn't seem like the best idea.  There are a number of approaches we could take to handle this, the option we'll go with is to place the value in a `settings.json` file.
 
 #####Terminal
 {% highlight Bash %}
 touch settings.json
 {% endhighlight %}
 
-#####/setting.json
+#####/settings.json
 {% highlight JavaScript %}
 {
   "public": {
@@ -284,7 +292,7 @@ Template.listCustomers.helpers({
 ...
 {% endhighlight %}
 
-First let's look at the `prevPage` function.  The first thing we do when calculating the URL for the previous page is to grab the current page from the URL, i.e. `Router.current().params.page`.  If there is no page parameter in the URL we default to 1.
+First let's look at the `prevPage` function.  The first thing we do when calculating the URL for the previous page is to grab the current page parameter from the URL, i.e. `Router.current().params.page`.  If there is no page parameter in the URL we default to 1.
 
 Next we assign `previousPage` to the current page minus 1... unless of course the current page is the first page in which case there is no previous page so we keep `previousPage` at 1.
 
@@ -296,9 +304,9 @@ Now our buttons should work right?   Wrong!
 
 <img src="../images/posts/paging-and-sorting-part-1/buttons-not-working.gif" class="img-responsive" />
 
-So our URL is changing as expected but our data is just sitting there on the first page, why is that?
+So our URL is changing as expected but our data is just sitting there on the first page, drat!
 
-The problem is our subscription isn't aware anything has changed so it doesn't refresh.  We can fix that by placing the subscribe logic inside an `autorun` function.
+The problem is our subscription isn't aware anything is changing so it doesn't refresh.  We can fix this by placing the subscribe logic inside an `autorun` function.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -314,11 +322,11 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-So not a ton of changes, we've just wrapped things in `autorun` so that when the page parameter changes the subscription gets refreshed.
+So not a ton of changes, we've just wrapped things in `autorun` so that when the page parameter changes `autorun` will pick up on that and the subscription gets refreshed.
 
-We need to store an instance of the template in a variable, i.e. `var template = this;` as the value of `this` will change within the `autorun` function so we won't be able to get at the template instance if we don't store it prior to entering the function.
+Note, we need to store an instance of the template in a variable, i.e. `var template = this;` as the value of `this` will change within the `autorun` function so we won't be able to get at the template instance if we don't store it prior to entering the function.
 
-So that's all good, but we also have an issue with our next page functionality... you can probably guess where this implementation falls down.
+So that's all good, but we also have an issue with our next page functionality... you can probably guess where the current implementation falls down.
 
 <img src="../images/posts/paging-and-sorting-part-1/page-too-far.gif" class="img-responsive" />
 
@@ -326,28 +334,28 @@ Hmm, we can just keep on paging past the point where we have any records to disp
 
 We're going to need a count of the total records in order to determine whether the next button should move onto a next page or stay where it is.  We also need the count to be <a href="http://docs.meteor.com/#/full/reactivity" target="_blank">reactive</a> as if one user is adding records while another is viewing records we want the count to update so that the viewing user is able to see the new records.
 
-Luckily there is a great <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> that will help us accomplish just this.
+Luckily there is a great <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> that will help us accomplish just what we want.
 
 #####Terminal
 {% highlight Bash %}
 meteor add tmeasday:publish-counts
 {% endhighlight %}
 
-With the publish-counts package installed we make use of it in our existing publication.
+Now we update the publication.
 
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('customers', function(skipCount) {
-  Counts.publish(this, 'customerCount', Customers.find(), { 
-    noReady: true
-  });
-  
   var positiveIntegerCheck = Match.Where(function(x) {
     check(x, Match.Integer);
     return x >= 0;
   });
   check(skipCount, positiveIntegerCheck);
 
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+  
   return Customers.find({}, {
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount
@@ -357,7 +365,7 @@ Meteor.publish('customers', function(skipCount) {
 
 Pretty neat, inside our existing `customers` publication we can also publish the count.  The `noReady` flag indicates that there is more data than just the count being sent down the line.  The <a href="https://atmospherejs.com/tmeasday/publish-counts" target="_blank">package</a> documentation contains more details, but basically we don't want our subscription thinking all the data is ready when we've still got some more data to retrieve.
 
-OK, so our publication is all set, let's update our next link helper to take advantage of our newly acquired count.
+OK, so our publication is all set, let's update our `nextPage` helper to take advantage of our newly acquired count.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -388,7 +396,8 @@ var hasMorePages = function() {
 
 We've created a `hasMorePages` function that we call from within `nextPage`.  In `nextPage` if we have more pages we increment the page number otherwise we stay where we are.
 
-`hasMorePages` is pretty straight-forward, we're just checking whether the current page multiplied by the number of items per page is less than the total number of customer records.  If it is we know we've got more records.
+`hasMorePages` is pretty straight-forward, with the publish-counts package it's easy to get the record count on the client via `Counts.get(...`.
+Then we're just checking whether the current page multiplied by the number of items per page is less than the total number of customer records.  If it is we know we've got more records.  
 
 Now, if you try to navigate past the 2nd page you won't be able to.
 
@@ -442,10 +451,12 @@ var currentPage = function() {
 }
 {% endhighlight %}
 
-Nothing special going on here, everywhere we were calculating the current page value we've now just removed the the calculated `currentPage` code with a call to the new `currentPage` function we've defined.
+Nothing special going on here, where we were previously calculating the current page value in multiple places we now just call out to the `currentPage` function we've defined.  Considering `currentPage` is a one-liner you could argue that it's not worth creating a separate function for it... it contains some (albeit minor) logic however so I feel it's worthwhile splitting it out to it's own function.
 
 ###Adding a wait indicator
-Currently we don't have any sort of wait indicator set up to indicate to the user data is loading.  This becomes apparent if you add a wait in the publication.
+At this point the core implementation is done, but there's some gravy we can add to make things a little more user friendly.
+
+Currently we don't have a wait indicator to signal data is loading.  This becomes apparent if you add a wait in the publication.
 
 #####/server/publications.js
 {% highlight JavaScript %}
@@ -484,7 +495,7 @@ Don't forget to remove the wait from `publications.js`... unless you like pokey 
 ####Setting the button classes
 The last thing we'll do is give the user a visual cue when they've reached the first or last page of records.  We'll accomplish this by changing up the class of the next and previous buttons when appropriate.
 
-We already added our spacebar directives for the classes earlier:
+We already have our spacebar directives for the classes:
 
 #####/client/templates/customers/list-customers.html
 {% highlight HTML %}
@@ -525,6 +536,8 @@ Template.listCustomers.helpers({
 {% endhighlight %}
 
 We return an empty string when the buttons should display as normal and return a CSS class of "disabled" when the buttons should be disabled.
+
+The logic behind what class to return is pretty self explanatory; if we're on page 1 we disable the previous link, if we don't have any more pages we disable the next link.
 
 And voila we have a visual clue on the links:
 

@@ -3,7 +3,7 @@ layout: about
 title: About
 permalink: /about/
 ---
-Hello!  I'm Nick Riebeek, and 'Experiments in Meteor' is a blog focused on the <a href="https://www.meteor.com/" target="_blank">Meteor Javascript Framework</a>.
+Hello!  I'm <a href="mailto:experiments.in.meteor@gmail.com">Nick Riebeek</a>, and 'Experiments in Meteor' is a blog focused on the <a href="https://www.meteor.com/" target="_blank">Meteor Javascript Framework</a>.
 
 I've been a professional software developer for over a decade, pretty much exclusively working with <a href="http://www.microsoft.com/net" target="_blank">.NET</a>.  
 

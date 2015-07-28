@@ -3,6 +3,10 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 2
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In part 1 we implemented paging, in this post we'll add sorting.
 ---
+#TODO
+- add parameter checks for sort direction and field
+  + add it when doing the actual sort dir and field implemenation as not passing in 1/-1 etc so need to know what actually passing in to check
+
 This is the second of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at how to add paging, in this post we'll add the sorting component.
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
@@ -49,8 +53,8 @@ The first thing we'll do is update the UI to have click-able headers, substituti
     </div>
   </div>
 
-  {% raw %}{{#unless ready}}        
-    {{> spinner}}      
+  {% raw %}{{#unless Template.subscriptionsReady}}
+    {{> spinner}}
   {{/unless}}{% endraw %}
   <table class="table">
     <thead>
@@ -81,10 +85,16 @@ Let's update the publication first.
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  var positiveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positiveIntegerCheck);
+
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
   });
-
+  
   var sortParams = {};
   sortParams[sortField] = sortDirection;
   return Customers.find({}, {
@@ -99,7 +109,7 @@ Nothing too crazy, we're passing two additional parameters to our publication, o
 
 Let's check out our app:
 
-<img src="../images/posts/paging-and-sorting-part-2/no-worky.gif" class="img-responsive" />
+<img src="../images/posts/paging-and-sorting-part-2/no-worky.png" class="img-responsive" />
 
 That's no good, but expected, we need to update our subscription to include the two new parameters.  To get things back to a working state we'll initially hard-code some values and then build out the full implementation.
 
@@ -107,49 +117,26 @@ First off though, to figure out what we're going to need to do, let's have a qui
 
 <img src="../images/posts/paging-and-sorting-part-2/robo.png" class="img-responsive" />
 
-We can see we have 5 fields in our customer record, 3 of which we are displaying in the UI.  Also the column names are slightly different from the table headers, so when we specify the sort field we need to keep in mind the column names in the database.
+We can see we have 4 fields in our customer record, 3 of which we are displaying in the UI.  Also the column names are slightly different from the table headers, so when we specify the sort field we need to keep in mind the column names in the database.
 
 Let's start off by sorting via the surname with an order value of 1 (i.e. an ascending sort direction).
 
-#####/lib/router/customer-routes.js
+#####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-CustomersListController = RouteController.extend({  
-  template: 'listCustomers',  
-  currentPage: function() {     
-    return parseInt(this.params.page) || 1;  
-  },
-  subscriptions: function() {
-    var skipCount = (this.currentPage() - 1) 
-      * parseInt(Meteor.settings.public.recordsPerPage)
-    this.customersSub = Meteor.subscribe('customers', skipCount, "surname", 1);  
-  },
+Template.listCustomers.onCreated(function() {
+  var template = this;
+
+  template.autorun(function() {
+    var skipCount = (currentPage() - 1) * Meteor.settings.public.recordsPerPage;
+    template.subscribe('customers', skipCount, "surname", 1);
+  });
+});
+...
 {% endhighlight %}
 
 After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort-by-surname.png" class="img-responsive" />
-
-Since we're only using some of the columns from our database records, we should also update our publication to reflect this.
-
-#####/server/publications.js
-{% highlight JavaScript %}
-Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
-  Counts.publish(this, 'customerCount', Customers.find(), { 
-    noReady: true
-  });
-
-  var sortParams = {};
-  sortParams[sortField] = sortDirection;
-  return Customers.find({}, {
-    fields: {'name':1, 'surname':1, 'email':1},
-    limit: parseInt(Meteor.settings.public.recordsPerPage),
-    skip: skipCount,
-    sort: sortParams
-  });
-});
-{% endhighlight %}
-
-We're now explicitly specifying which fields to return in the publication (note the `_id` will be returned automatically).  Although not a big deal in this particular instance, specifying the columns to return to the client is a good practice.  There is not point in bringing down data that you don't need and in some cases there might be columns in your database that you don't want to expose to the client.
 
 ###An issue
 Hmm, I'm getting bored having only 6 customers in our database, how about we add a new customer via the `Add Customer` button.
@@ -240,20 +227,17 @@ meteor --settings settings.json
 
 And now re-adding Bob d'Arnaud, puts him in the right place... after we make a small change to our subscription, using the `surname_sort` column instead of `surname` as the sort column.
 
-#####/lib/router/customer-routes.js
+#####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-CustomersListController = RouteController.extend({  
-  template: 'listCustomers',  
-  currentPage: function() {     
-    return parseInt(this.params.page) || 1;  
-  },
-  subscriptions: function() {
-    var skipCount = (this.currentPage() - 1) 
-      * parseInt(Meteor.settings.public.recordsPerPage)
-    this.customersSub = Meteor.subscribe('customers', skipCount, "surname_sort", 1);  
-  },
-  ...
-  ...
+Template.listCustomers.onCreated(function() {
+  var template = this;
+
+  template.autorun(function() {
+    var skipCount = (currentPage() - 1) * Meteor.settings.public.recordsPerPage;
+    template.subscribe('customers', skipCount, "surname_sort", 1);
+  });
+});
+...
 {% endhighlight %}
 
 There we go, Bob is now where he belongs.
@@ -276,11 +260,8 @@ The first step is to update our routes so that Meteor understands what to do wit
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
-... existing code
-
 Router.route('/:page?/:sortField?/:sortDirection?', {  
-  name: 'listCustomers',  
-  controller: CustomersListController
+  name: 'listCustomers'
 });
 
 Router.route('/customer/add', {
@@ -291,18 +272,23 @@ Router.route('/customer/add', {
 All we've done is add optional parameters for the sort field and direction.  This will get rid of the 404 but the parameters aren't going to have any affect on our application... so let's get that sorted.
 
 ####Implementing the sort direction
-So let's work on the sort direction first.  We'll need to make a small change to the subscription in our route.
+So let's work on the sort direction first.  We'll need to make a small change to the subscription.
 
-#####/lib/router/customer-routes.js
+#####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-...
-subscriptions: function() {
-  var skipCount = (this.currentPage() - 1) 
-    * parseInt(Meteor.settings.public.recordsPerPage);
-  this.customersSub = Meteor.subscribe('customers', skipCount, 
-    "surname_sort", 
-    this.params.sortDirection);  
-},
+Template.listCustomers.onCreated(function() {
+  var template = this;
+
+  template.autorun(function() {
+    var skipCount = (currentPage() - 1) * Meteor.settings.public.recordsPerPage;
+    template.subscribe(
+      'customers', 
+      skipCount, 
+      "surname_sort", 
+      Router.current().params.sortDirection
+    );
+  });
+});
 ...
 {% endhighlight %}
 
@@ -326,20 +312,17 @@ var buildSortParams = function(sortField, sortDirection) {
 }
 
 Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
-  check(skipCount, Number);
-  if (sortField) {
-    check(sortField, String);
-  }
-  if (sortDirection) {
-    check(sortDirection, String);
-  }
+  var positiveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positiveIntegerCheck);
 
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
   });
-
+  
   return Customers.find({}, {
-    fields: {'name':1, 'surname':1, 'email':1},
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount,
     sort: buildSortParams(sortField, sortDirection)
@@ -358,18 +341,23 @@ With the above in place we can now affect the sort order of our records by manua
 Of course, the sort field is still always going to be the last name field, since we haven't yet hooked up the sort field functionality... let's do that next.
 
 ####Implementing the sort field
-The sort field implementation is going to be very similar to what we did for the sort direction.  First off let's update our routing code to make use of the sort field parameter.
+The sort field implementation is going to be very similar to what we did for the sort direction.  First off let's update our subscription to make use of the sort field parameter.
 
-#####/lib/router/customer-routes.js
+#####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
-...
-subscriptions: function() {
-  var skipCount = (this.currentPage() - 1) 
-    * parseInt(Meteor.settings.public.recordsPerPage);
-  this.customersSub = Meteor.subscribe('customers', skipCount, 
-    this.params.sortField, 
-    this.params.sortDirection);  
-},
+Template.listCustomers.onCreated(function() {
+  var template = this;
+
+  template.autorun(function() {
+    var skipCount = (currentPage() - 1) * Meteor.settings.public.recordsPerPage;
+    template.subscribe(
+      'customers', 
+      skipCount, 
+      Router.current().params.sortField,
+      Router.current().params.sortDirection
+    );
+  });
+});
 ...
 {% endhighlight %}
 
@@ -425,11 +413,8 @@ So in order to fix this we're just going to move our customer list off the root.
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
-... existing code
-
 Router.route('customers/:page?/:sortField?/:sortDirection?', {  
-  name: 'listCustomers',  
-  controller: CustomersListController
+  name: 'listCustomers'
 });
 ...
 {% endhighlight %}
@@ -489,6 +474,8 @@ var toggleSortDirection = function(sortBy) {
     }
   }
 }
+...
+...
 {% endhighlight %}
 
 OK, that's a bit of a code dump but it's all pretty straight-forward.  
@@ -503,7 +490,11 @@ And with that we should have our sorting all working.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort.gif" class="img-responsive" />
 
-... but hey what's going on, Carl's not even moving, how can that be, everything worked when we were manually entering URLs, so what's going on now?
+... but hey what's going on, with that first sort by email our records are looking at all right, they should be sorting by email ascending.
+
+<img src="../images/posts/paging-and-sorting-part-2/first-sort-bad.png" class="img-responsive" />
+
+This isn't good, how can that be, everything worked when we were manually entering URLs, so what's going on now?  In fact the sort *still* works if we enter the URL manually and click enter.
 
 ####Some debugging
 
@@ -514,10 +505,19 @@ Let's add some console logging to both our server and client code to see if we c
   ...
   ...
 
-  var sortInfo = buildSortParams(sortField, sortDirection);
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  var positiveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positiveIntegerCheck);
 
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+  
+  var sortInfo = buildSortParams(sortField, sortDirection);
   var c = Customers.find({}, {
-    fields: {'name':1, 'surname':1, 'email':1},
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount,
     sort: buildSortParams(sortField, sortDirection)
@@ -544,7 +544,7 @@ We'll do something similar with our subscription:
 {% highlight JavaScript %}
 Template.listCustomers.helpers({
   customers: function() {
-    var c = Customers.find({}, {limit: parseInt(Meteor.settings.public.recordsPerPage)});
+    var c = Customers.find();
     console.log(c.fetch());
     return c;
   },
@@ -552,27 +552,19 @@ Template.listCustomers.helpers({
   ...
 {% endhighlight %}
 
-Now with that all in place let's see what happens when first click the first name header.
+Now with that all in place let's see what happens when first click the email header.
 
 <img src="../images/posts/paging-and-sorting-part-2/first-click-server.png" class="img-responsive" />
 
-So the output of our publication is what we would expect, we are getting 3 records and the records are sorted by first name ascending.
+So the output of our publication is what we would expect, we are getting 3 records and the records are sorted by email ascending.
 
 <img src="../images/posts/paging-and-sorting-part-2/first-click-client.png" class="img-responsive" />
 
-What's up with the client thou?  We have the expected 3 records but they look to be getting sorted in descending order.  Very strange, let's click the header again and see what happens.
-
-<img src="../images/posts/paging-and-sorting-part-2/second-click-server.png" class="img-responsive" />
-
-Again the publication looks a-ok.  We get 3 records sorted by first name descending.  How about the client?
-
-<img src="../images/posts/paging-and-sorting-part-2/second-click-client.png" class="img-responsive" />
-
-Once again we see the expected 3 records on the client, but they are ordered... randomly?
+What's up with the client thou?  We have the expected 3 records but the sort order is off.
 
 So what's going on?  The problem is that the sort order of a publication does not guarantee anything on the client.  The sorting in the publication only ensures that the correct records are sent over to the client.  On the client end we need to once again explicitly sort the records we get from the publication to ensure they display in the correct order.
 
-`Any explanation for why when enter URL explicity it works????`
+OK, so we can remove our debug code and get to fixing the issue.
 
 ####Sorting on the client
 So now that we've figured out that we'll have to apply our sort parameters on both the server and the client, we should first suck our sort parameter logic into a common function we can access on both the client and server.
@@ -619,24 +611,17 @@ So let's remove the debug code from our publication and make use of our new `cus
 #####/server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
-  check(skipCount, Number);
-  if (sortField) {
-    check(sortField, String);
-  }
-  if (sortDirection) {
-    check(sortDirection, String);
-  }
+  var positiveIntegerCheck = Match.Where(function(x) {
+    check(x, Match.Integer);
+    return x >= 0;
+  });
+  check(skipCount, positiveIntegerCheck);
 
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
   });
-
+  
   return Customers.find({}, {
-    fields: {
-      'name':1, 'name_sort':1, 
-      'surname':1, 'surname_sort':1,
-      'email':1
-    },
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount,
     sort: CustomerSortSettings.build(sortField, sortDirection)
@@ -644,16 +629,15 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 });
 {% endhighlight %}
 
-So we've removed the code that builds the sort parameters and instead are calling into `CustomerSortSettings.build...`.  We're also now returning the sort fields (i.e. `name_sort` and `surname_sort`) as we'll now need those on the client to perform our client sort.
+So we've removed the code that builds the sort parameters and instead are calling into `CustomerSortSettings.build...`.  
 
-So let's remove the debug code from the client and perform a client side sort.
+Next let's perform a client side sort.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
 Template.listCustomers.helpers({
   customers: function() {
     return Customers.find({}, {
-      limit: parseInt(Meteor.settings.public.recordsPerPage),
       sort: CustomerSortSettings.build(
         Router.current().params.sortField || 'lastname', 
         Router.current().params.sortDirection || 'asc')
@@ -661,6 +645,8 @@ Template.listCustomers.helpers({
   },
   ...
   ...
+  // NOTE THIS HAS BEEN REMOVED, as it's now in CustomerSortSettings
+  // var toggleSortDirection = function(sortBy) {
 {% endhighlight %}
 
 Super easy, we've just added a sort to our `find()` call which makes use of the helper we created earlier.
@@ -724,6 +710,37 @@ OK, so in our `find` call we now get the sort direction and field from the helpe
 
 In the `navigate...` function we now call into the toggleSortDirection that we've moved out of `list-customers` and into the helper.
 
+###Updating the next and previous buttons
+We still have one more problem... clicking the paging buttons causes the sort field and direction to clear out.
+
+<img src="../images/posts/paging-and-sorting-part-2/url-cleared.gif" class="img-responsive" />
+
+This is easy to fix, we just need to add the new URL parameters to our next and previous links.
+
+#####/client/templates/customers/list-customers.js
+{% highlight JavaScript %}
+...
+prevPage: function() {
+  var previousPage = currentPage() === 1 ? 1 : currentPage() - 1;
+  return Router.routes.listCustomers.path({
+    page: previousPage,
+    sortField: Router.current().params.sortField,
+    sortDirection: Router.current().params.sortDirection
+  });
+},
+nextPage: function() {
+  var nextPage = hasMorePages() ? currentPage() + 1 : currentPage();
+  return Router.routes.listCustomers.path({
+    page: nextPage,
+    sortField: Router.current().params.sortField,
+    sortDirection:Router.current().params.sortDirection
+  });
+},
+...
+{% endhighlight %}
+
+And with that we are almost done, just one final step.
+
 ###Adding a sort indicator
 It would be nice to have a sort indicator to provide some visual feedback to the user regarding how the table is currently sorted.  We'll use <a href="http://fortawesome.github.io/Font-Awesome/" target="_blank">font awesome</a> icons to indicate the sort direction.  A <a href="https://atmospherejs.com/natestrauser/font-awesome" target="_blank">package</a> is available, so lets get that added.
 
@@ -743,30 +760,30 @@ Now we'll update our table headers to include an icon.
     </div>
   </div>
 
-  {% raw %}{{#unless ready}}        
-    {{> spinner}}      
-  {{/unless}}{% endraw %}
+  {{#unless Template.subscriptionsReady}}
+    {{> spinner}}
+  {{/unless}}
   <table class="table">
     <thead>
       <tr>
         <th>
           <a id="firstName" href="#">First name
             <span>
-              <i class="{% raw %}{{firstNameIconClass}}{% endraw %}"></i>
+              <i class="{{firstNameIconClass}}"></i>
             </span>
           </a>
         </th>
         <th>
           <a id="lastName" href="#">Last name
             <span>
-              <i class="{% raw %}{{lastNameIconClass}}{% endraw %}"></i>
+              <i class="{{lastNameIconClass}}"></i>
             </span>
           </a>
         </th>
         <th>
           <a id="email" href="#">Email
             <span>
-              <i class="{% raw %}{{emailIconClass}}{% endraw %}"></i>
+              <i class="{{emailIconClass}}"></i>
             </span>
           </a>
         </th>
@@ -785,16 +802,14 @@ So we've added icon classes to each header.  Now we need to define those in `lis
 
 Template.listCustomers.helpers({
   customers: function() {
-    return Customers.find();
-  },
-  ...
-  ...
+    ...
+    ...
   ,
   firstNameIconClass: function() {
-    return CustomerSortSettings.getSortIconClass("name_sort");
+    return CustomerSortSettings.getSortIconClass("firstname");
   },
   lastNameIconClass: function() {
-    return CustomerSortSettings.getSortIconClass("surname_sort");
+    return CustomerSortSettings.getSortIconClass("lastname");
   },
   emailIconClass: function() {
     return CustomerSortSettings.getSortIconClass("email");
