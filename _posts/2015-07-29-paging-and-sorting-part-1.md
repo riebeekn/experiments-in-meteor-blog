@@ -547,3 +547,5 @@ And voila we have a visual clue on the links:
 
 ##Summary
 OK, so that's it for the exciting world of paging in Meteor, thanks for reading and hope you enjoyed the post.  In part two we'll look at adding sorting.
+
+... but wait, hold on, based on some of the comments below we've got some more work to do in order to remove a limitation of the current implementation.  Check out <a href="/paging-and-sorting-part-1a/" target="_blank">part 1a</a> (or part 1 eh, if you're Canadian) to see what the issue is and how we can address it.

@@ -3,11 +3,7 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 2
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In part 1 we implemented paging, in this post we'll add sorting.
 ---
-#TODO
-- add parameter checks for sort direction and field
-  + add it when doing the actual sort dir and field implemenation as not passing in 1/-1 etc so need to know what actually passing in to check
-
-This is the second of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at how to add paging, in this post we'll add the sorting component.
+This is the second of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> we looked at paging, now we'll enhance the application we built out in part 1 by adding sorting.
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
 
@@ -25,13 +21,14 @@ Note, if you aren't familiar with Git and / or don't have it installed you can d
 #####Terminal
 {% highlight Bash %}
 git clone -b part-1 https://github.com/riebeekn/paging-and-sorting.git
-cd paging-and-sorting
 {% endhighlight %}
 
 ###Start up the app
+OK, you’ve either gotten the code from GitHub or are using the existing code you created in Part 1, let’s see where we’re starting from.
 
 #####Terminal
 {% highlight Bash %}
+cd paging-and-sorting
 meteor --settings settings.json
 {% endhighlight %}
 
@@ -42,7 +39,7 @@ You should now see the starting point for our application when you navigate your
 ##Adding sorting
 
 ###Updating the table headers
-The first thing we'll do is update the UI to have click-able headers, substituting links for the current headers.
+The first thing we'll do is update the UI to have click-able table headers, so let's go!
 
 #####/client/templates/customers/list-customers.html
 {% highlight HTML %}
@@ -76,7 +73,7 @@ The first thing we'll do is update the UI to have click-able headers, substituti
       ...
 {% endhighlight %}
 
-OK, nothing complicated there, but before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This will require a change to both the publication and the subscription.
+OK, nothing complicated there we've just switched out the regular table headers with links.  Before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This is going to require a change to both out publication and subscription.
 
 ###Updating the publication and subscription
 
@@ -105,7 +102,7 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 });
 {% endhighlight %}
 
-Nothing too crazy, we're passing two additional parameters to our publication, one for the sort field and the other for the sort direction.  The find call has been updated to take the new parameters into account.
+Nothing too crazy, we're passing in two additional parameters, one for the sort field and the other for the sort direction.  Then the find call has been updated to take the new parameters into account.
 
 Let's check out our app:
 
@@ -117,7 +114,7 @@ First off though, to figure out what we're going to need to do, let's have a qui
 
 <img src="../images/posts/paging-and-sorting-part-2/robo.png" class="img-responsive" />
 
-We can see we have 4 fields in our customer record, 3 of which we are displaying in the UI.  Also the column names are slightly different from the table headers, so when we specify the sort field we need to keep in mind the column names in the database.
+We can see we have 4 fields in our customer record, 3 of which we are displayed in the UI.  Also the column names are slightly different from the table headers, so when we specify the sort field we need to keep in mind the column names in the database.
 
 Let's start off by sorting via the surname with an order value of 1 (i.e. an ascending sort direction).
 
@@ -150,11 +147,11 @@ Awesome, we have a new customer... but hey what is up with the sort order?  Our 
 Well turns out Mongo does not support <a href="http://stackoverflow.com/questions/22931177/mongo-db-sorting-with-case-insensitive" target="_blank">case insensitive sorting</a>, and uppercase words will always come prior to lowercase words when sorted.  Holy smokes, what are we going to do?
 
 ###A solution
-Turns out a common pattern when needing to sort on String columns in Mongo is to duplicate a lowercased version of the field for the purpose of sorting.  Coming from a traditional database background, this seems a little strange, but that's just the way it's done in Mongo, denormalization and duplication is fairly common.
+Turns out a common pattern when needing to sort on String columns in Mongo is to duplicate a lower-cased version of the field for the purpose of sorting.  Coming from a traditional database background, this seems a little strange, but that's just the way it's done in Mongo, denormalization and duplication is fairly common.
 
-So how can we accomplish this in our application?  There's a package for that (well sort of)!
+So how can we accomplish this in our application?  Duplicating and keeping in sync extra columns seems like it will be a huge, error-prone headache!  Luckily there's a package that will alleviate this particular headache better than a jumbo bottle of Aspirin.
 
-We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow use to automatically create lower-cased versions of our String fields on insert.  Let's see how it all works.
+We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package and this will allow us to automatically create lower-cased versions of our String fields.  Let's see how it all works.
 
 #####Terminal
 {% highlight Bash %}
@@ -215,7 +212,7 @@ Customers.attachSchema(new SimpleSchema({
 })); 
 {% endhighlight %}
 
-In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` property to create and assign a value to our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.
+In the schema file we're specifying the types of our fields, i.e. `type: String` and then using the `autoValue` property to create and assign a value to our sort specific columns.  The code that assigns the value is pretty straight-forward, we're just lower-casing the value of the primary column.  While we are at it we're lowercasing the email field to avoid any funkiness that might arise if a user enters a mixed case email address.
 
 We'll want to reset our app so that our fixture data gets the new auto value data.  So stop, reset and re-start the meteor server.
 
@@ -244,16 +241,14 @@ There we go, Bob is now where he belongs.
 
 <img src="../images/posts/paging-and-sorting-part-2/good-sort.png" class="img-responsive" />
 
-#NEW
-
 ###Dynamic sorting based on the URL
-OK, so we have sorting working with hard-coded values, now let's see if we can get the sort field and sort direction to react to the current URL.  Similar to what we did with paging we'll initially manually update the URL and then hook in the UI links.
+OK, so we have sorting working with hard-coded values in the subscription, now let's see if we can get the sort field and sort direction to react to the current URL.  Similar to what we did with paging we'll initially manually update the URL and then hook in the UI links.
 
-What we're aiming to accomplish is the following:
+What we're aiming to accomplish is something like the following:
 
 <img src="../images/posts/paging-and-sorting-part-2/url.png" class="img-responsive" />
 
-So the URL contains the sort field and direction we should be applying... let's work on getting rid of that 404.
+The URL contains the sort field and direction we should be applying... let's work on getting rid of that 404.
 
 ####Update the router
 The first step is to update our routes so that Meteor understands what to do with the new URL parameters.
@@ -269,10 +264,10 @@ Router.route('/customer/add', {
 });
 {% endhighlight %}
 
-All we've done is add optional parameters for the sort field and direction.  This will get rid of the 404 but the parameters aren't going to have any affect on our application... so let's get that sorted.
+All we've done is add optional parameters for the sort field and direction.  This will get rid of the 404 but the parameters aren't going to have any affect on our application... so let's get that sorted (ha, ha).
 
 ####Implementing the sort direction
-So let's work on the sort direction first.  We'll need to make a small change to the subscription.
+Let's work on the sort direction first.  We'll need to make a small change to the subscription.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
@@ -292,9 +287,9 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-So we're just passing along the value of the `sortDirection` parameter to the subscription.
+Now we're passing along the value of the `sortDirection` parameter to the subscription via `Router.current().params.sortDirection` instead of hard-coding a value.
 
-Now we need to update the publication to handle the parameter properly.
+Let's update the publication to handle the parameter properly.
 
 #####/server/publications.js
 {% highlight JavaScript %}
@@ -318,6 +313,16 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
   });
   check(skipCount, positiveIntegerCheck);
 
+  var sortDirectionCheck = Match.Where(function(x) {
+    if (x) {
+      check(x, String);
+      return x === 'asc' || x === 'desc';
+    } else {
+      return true;
+    }
+  });
+  check(sortDirection, sortDirectionCheck)
+
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
   });
@@ -330,9 +335,9 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 });
 {% endhighlight %}
 
-The logic around the sort parameters is starting to get a little bit involved so we've refactored that out into a separate method, `buildSortParams`.  The method itself is fairly simple however, we're just checking the value of the `sortDirection` that has been passed in.  If the value is `null` or not `desc` we default to an ascending sort.
+The logic around the sort parameters is starting to get a little bit involved so we've refactored that out into a separate method, `buildSortParams`.  The method itself is fairly simple however, we're just checking the value of the `sortDirection` that has been passed in.  If the value is `null` we default to ascending, if the value is set we sort based on the value passed in.
 
-The only other change is we've added some checks for our input parameters, this is a good practice and is something we should have done off the drop... but better later than never!
+In the main publication code we've added a check for our new input parameters, and updated the `sort:...` line within the `find` to call out to our `buildSortParams` function.
 
 With the above in place we can now affect the sort order of our records by manually entering a sort direction into the URL of our application.
 
@@ -361,7 +366,7 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-A very small change is required here, just swapping out the hard-coded `surname_sort` parameter value with the actual route parameter, i.e. `this.params.sortField`.
+A very small change is required here, just swapping out the hard-coded `surname_sort` parameter value with the actual route parameter, i.e. `Router.current().params.sortField`.
 
 Now onto the publication.
 
@@ -390,15 +395,101 @@ var buildSortParams = function(sortField, sortDirection) {
 
   return sortParams;
 }
-...
-...
+
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  var positiveIntegerCheck = Match.Where(function(x) {
+    ...
+    ...
+  }
+
+  var sortFieldCheck = Match.Where(function(x) {
+    if (x) {
+      check(x, String);
+      return x === 'firstname' || x === 'lastname' || x ==='email';
+    } else {
+      return true;
+    }
+  });
+  check(sortField, sortFieldCheck);
+
+  var sortDirectionCheck = Match.Where(function(x) {
+    ...
+    ...
+}
 {% endhighlight %}
 
-So the only thing we've changed is to add some logic to handle the `sortField` value that gets passed in.  We're defaulting to sorting via last name when a value is not passed in, otherwise we sort on the appropriate column.
+So the only thing we've changed is to add some logic to handle the `sortField` value in the `buildSortParams` function.  We're defaulting to sorting via last name when a value is not passed in, otherwise we sort on the appropriate column.  We also add a check for the `sortField` in the main publication code.
 
 And with that we are able to manually sort our records via the URL.
 
 <img src="../images/posts/paging-and-sorting-part-2/manual-sort.gif" class="img-responsive" />
+
+####A quick refactor
+All that parameter checking is starting to make it a little hard to see what we're actually doing in the publication, the check code takes up more space than the code that actually grabs the data!
+
+Let's suck the check's into a helper class to thin out the publication.  As an added bonus we can also re-use the check code in other places down the road if we need to.
+
+#####Terminal
+{% highlight Bash %}
+mkdir server/helpers
+touch server/helpers/custom-checks.js
+{% endhighlight %}
+
+#####/server/helpers/custom-checks.js
+{% highlight JavaScript %}
+CustomChecks = {};
+
+CustomChecks.positiveIntegerCheck = Match.Where(function(x) {
+  check(x, Match.Integer);
+  return x >= 0;
+});
+
+CustomChecks.sortFieldCheck = Match.Where(function(x) {
+  if (x) {
+    check(x, String);
+    return x === 'firstname' || x === 'lastname' || x ==='email';
+  } else {
+    return true;
+  }
+});
+
+CustomChecks.sortDirectionCheck = Match.Where(function(x) {
+  if (x) {
+    check(x, String);
+    return x === 'asc' || x === 'desc';
+  } else {
+    return true;
+  }
+});
+{% endhighlight %}
+
+So with `custom-checks.js` all we've done is to extract the custom check code out of `publication.js`.
+
+This makes our main publication method much more readable.
+
+#####/server/publications.js
+{% highlight JavaScript %}
+...
+...
+Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+  // parameter validations
+  check(skipCount, CustomChecks.positiveIntegerCheck);
+  check(sortField, CustomChecks.sortFieldCheck);
+  check(sortDirection, CustomChecks.sortDirectionCheck)
+
+  Counts.publish(this, 'customerCount', Customers.find(), { 
+    noReady: true
+  });
+  
+  return Customers.find({}, {
+    limit: parseInt(Meteor.settings.public.recordsPerPage),
+    skip: skipCount,
+    sort: buildSortParams(sortField, sortDirection)
+  });
+});
+{% endhighlight %}
+
+#STOPPED
 
 ####A small problem
 Before moving on, let's add a new customer to our site via the add customer button.
