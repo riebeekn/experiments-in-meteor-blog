@@ -3,6 +3,8 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 2
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In part 1 we implemented paging, in this post we'll add sorting.
 ---
+#CHECK IF CAN NOT USE 1 -1 FOR INITIAL SORT
+
 This is the second(ish) of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> and  <a href="/paging-and-sorting-part-1a/index.html" target="_blank">part 1a</a> we looked at paging, now we'll add sorting.
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
@@ -34,8 +36,6 @@ meteor --settings settings.json
 {% endhighlight %}
 
 You should now see the starting point for our application when you navigate your browser to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>.
-
-#REPLACE
 
 <img src="../images/posts/paging-and-sorting-part-2/app-starting-point.png" class="img-responsive" />
 
@@ -79,7 +79,7 @@ The first thing we'll do is update the UI to have click-able table headers.
 
 OK, nothing complicated.  We've just switched out the regular table headers with links.  
 
-Before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This is going to require a change to both the publication and subscription.
+Before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This is going to require a change to both the publication and then client side we'll need to update the subscription.
 
 ###Updating the publication and subscription
 
@@ -106,6 +106,8 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
     sort: sortParams
   });
 });
+...
+...
 {% endhighlight %}
 
 Nothing too crazy, we're passing in two additional input parameters to the function, one for the sort field and the other for the sort direction.  Then the find call has been updated to take the new parameters into account via the `sortParams` variable.
@@ -120,7 +122,6 @@ That's no good, but expected, we need to update our subscription to include the 
 
 First off though, to figure out what we're going to need to do, let's have a quick look at our database records with <a href="http://robomongo.org/" target="_blank">Robomongo</a>.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/robo.png" class="img-responsive" />
 
 We can see we have 5 fields in our customer records, 3 of which are displayed in the UI.  Also the column names are slightly different from what we're using for the table headers in the UI, so when we specify the sort field we need to keep in mind the column names in the database.
@@ -140,7 +141,7 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
+The only change we've made is to the `template.subscribe...` line.  After hard-coding the surname as the sort field and ascending as the sort order, everything should be back working and we'll see our list of customers is now sorted by surname.
 
 <img src="../images/posts/paging-and-sorting-part-2/sort-by-surname.png" class="img-responsive" />
 
@@ -151,7 +152,6 @@ Hmm, I'm getting bored having only 6 customers in our database, how about we add
 
 Awesome, we have a new customer... but hey what is up with the sort order?  Our newly added customer is way back on the last page.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/bad-sort-order.png" class="img-responsive" />
 
 Well turns out Mongo does not support <a href="http://stackoverflow.com/questions/22931177/mongo-db-sorting-with-case-insensitive" target="_blank">case insensitive sorting</a>, and uppercase words will appear prior to lowercase words when sorted.  Holy smokes, what are we going to do?
@@ -241,7 +241,7 @@ First we're specifying the type of each column (notice we've added 2 new columns
 
 Next we're making use of the `autoValue` function on some of the columns.
 
-For the sort specific columns we're just lower-casing the value of the primary column.  We're also lowercasing the email field to avoid any funkiness that might arise if a user enters a mixed case email address.  
+For the sort specific columns we're just lower-casing the value of the primary column, i.e. `return surname.value.toLowerCase()`.  We're also lowercasing the email field to avoid any funkiness that might arise if a user enters a mixed case email address.  
 
 Finally we're automatically applying the current date / time to the `acquired` field on an insert and preventing any updates on the column. Since the acquired field represents when a customer was added to the application, the field should only be set on the insert and never updated.
 
@@ -311,10 +311,9 @@ Template.listCustomers.onCreated(function() {
 
 We're using the `surname_sort` column instead of `surname` as the sort column and there we go, Bob is now where he belongs.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/good-sort.png" class="img-responsive" />
 
-Also notice that with our auto assigned `acquired` values Cindy will now show up as our newest customer instead of Erica.  The record for Cindy is the last record in `fixture.js`, so is the last record to be inserted; and therefore will contain the newest `acquired` value.
+Also notice that before we added Bob, Cindy showed up as our newest customer instead of Erica.  With our auto assigned `acquired` values from the schema and the record for Cindy being the last record in `fixture.js`, hers is the last record to be inserted; and therefore contained the newest `acquired` value.
 
 ###Dynamic sorting based on the URL
 OK, so we have sorting working with hard-coded values in the subscription, now let's see if we can get the sort field and sort direction to react to the current URL.  Similar to what we did with paging we'll initially manually update the URL and then hook in the UI links.
@@ -381,7 +380,7 @@ var buildSortParams = function(sortField, sortDirection) {
   return sortParams;
 }
 
-Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+FindFromPublication.publish('customers', function(skipCount, sortField, sortDirection) {
   var positiveIntegerCheck = Match.Where(function(x) {
     check(x, Match.Integer);
     return x >= 0;
@@ -410,8 +409,6 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 });
 {% endhighlight %}
 
-#ARE DEFAULTS FOR PARAMS NECESSARY AS CHECKS WILL FAIL, SO MAYBE REMOVE THEM AND UPDATE EXPLANATION?
-
 The logic around the sort parameters is starting to get a little bit involved so we've refactored it to a separate function, `buildSortParams`.  The method itself is fairly simple, we're just checking the value of the `sortDirection` that has been passed in.  If the value is `null` we default to ascending.  If the value is present we sort based on the value, converting `desc` to `-1`, otherwise defaulting to `1`.
 
 In the main publication code we've added a check for the `sortDirection`, verifying that it is a `String` and set to either `asc` or `desc`. 
@@ -420,7 +417,6 @@ The `sort:...` within the `find` call now takes advantage of the refactored out 
 
 With the above in place we can now affect the sort order of our records by manually entering a sort direction into the URL of our application.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/sort-done.png" class="img-responsive" />
 
 Of course, the sort field is still going to be the last name, since we haven't hooked up the sort field functionality... let's do that next.
@@ -476,7 +472,7 @@ var buildSortParams = function(sortField, sortDirection) {
   return sortParams;
 }
 
-Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+FindFromPublication.publish('customers', function(skipCount, sortField, sortDirection) {
   var positiveIntegerCheck = Match.Where(function(x) {
     ...
     ...
@@ -504,11 +500,53 @@ We've also added a check for the `sortField` in the main publication code.  It's
 
 And with that we are able to manually sort our records via the URL.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/manual-sort.gif" class="img-responsive" />
 
+####A bit of weirdness
+Did you see anything a little strange in the screen grab above?  Let's do a freeze frame on our first name ascending sort.
+
+<img src="../images/posts/paging-and-sorting-part-2/first-name-asc.png" class="img-responsive" />
+
+As we all know users are always being difficult, use software wrong and all around mess up developers lives... and this is yet another example of that, imagine 2 customers having the same name... ridiculous!
+
+All joking aside, since we can expect duplicate first and last names, we should adjust our sorting logic to deal with duplicates in a reasonable manner.  When ordering on a name field it makes sense to order by the primary name field (i.e. first name, if the first name header is clicked) and then the secondary name field (i.e. last name).
+
+So how can we apply a multi column `sort` to a `find` call?  Well turns out the value of a `sort` parameter can be an object (like what we've been doing so far) or an array of arrays.  This second option is what will allow for a multi column sort.  We can pass something like `[["name_sort", "asc"],["surname_sort", "asc"]]` into the find call in order to perform a multi column sort.
+
+Let's update `buildSortParameters` to do just that.
+
+#####/server/publications.js
+ {% highlight JavaScript %}
+ var buildSortParams = function(sortField, sortDirection) {
+  var sortParams = [];
+  
+  var direction = sortDirection || 'asc';
+
+  var field = sortField || 'surname_sort';
+  if (sortField === 'firstname') {
+    sortParams.push(['name_sort', direction]);
+    sortParams.push(['surname_sort', direction])
+  } else if (sortField === 'lastname') {
+    sortParams.push(['surname_sort', direction]);
+    sortParams.push(['name_sort', direction]);
+  } else if (sortField === 'email') {
+    sortParams.push(['email', sortDirection]);
+  } 
+
+  return sortParams;
+}
+...
+...
+{% endhighlight %} 
+
+Pretty straight forward, instead of an object we're returning an array of arrays.  In the case of a first or last name sort we're applying a secondary sort on the appropriate name field.
+
+Now when we sort by first name ascending, a secondary sort is performed on the last name... and the Bob's appear in a more logical order.
+
+<img src="../images/posts/paging-and-sorting-part-2/bobs-good.png" class="img-responsive" />
+
 ####A quick refactor
-All that parameter checking is starting to make it a little hard to see what we're actually doing in the publication, the check code takes up more space than the code that actually grabs the data!
+One thing I'm not too happy about is all that parameter checking in our `customers` publication is starting to make it a little hard to see what we're actually doing in the publication, the check code takes up more space than the code that actually grabs the data!
 
 Let's suck the check's into a helper class to thin out the publication.  As an added bonus we can also re-use the check code in other places down the road if we need to.
 
@@ -554,7 +592,7 @@ This makes our main publication method much more readable.
 {% highlight JavaScript %}
 ...
 ...
-Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
+FindFromPublication.publish('customers', function(skipCount, sortField, sortDirection) {
   // parameter validations
   check(skipCount, CustomChecks.positiveIntegerCheck);
   check(sortField, CustomChecks.sortFieldCheck);
@@ -575,18 +613,15 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
 ####A small problem
 Before moving on, let's add a new customer to our site via the add customer button.
 
-#REPLACE, high light URL in replacement
 <img src="../images/posts/paging-and-sorting-part-2/bad-add.png" class="img-responsive" />
 
-Hey, that doesn't look right, why are we still seeing our list of customers?
+Hey, that doesn't look right, why are we still on our list of customers?  If we look at the server console, we can see Meteor attempting to render our customer list but our parameter checks failed.
 
-Now that we have 3 optional parameters on our `root` route, our pattern for the `add customer` route is matching with the `root` route.  `customer` is being treated as the first optional parameter, `add` as the second optional parameter.
+<img src="../images/posts/paging-and-sorting-part-2/bad-add-console.png" class="img-responsive" />
 
-#TRY CHANGING ROUTE ORDER DOES THAT FIX IT?
+The issue is the 3 optional parameters on our `root` route. Our pattern for the `add customer` route is matching with the `root` route.  `customer` is being treated as the first optional parameter, `add` as the second optional parameter.
 
-This isn't something you'd probably run into with a 'real' application as you'll usually have some sort of landing page for the root of your site and won't have a bunch of optional parameters on the root route.  It is something to keep in mind when using optional parameters however, if you aren't careful you can get unintentional route matching going on and you'll find your navigation is no longer doing what you want!
-
-So in order to fix this we're just going to move our customer list page off the root.
+So there are a couple of ways that we could fix this.  We could move our customers list off the root route, for example:
 
 #####/lib/router/customer-routes.js
 {% highlight JavaScript %}
@@ -596,12 +631,24 @@ Router.route('customers/:page?/:sortField?/:sortDirection?', {
 ...
 {% endhighlight %}
 
-All we've done is change the URL where our customers will show up.
+Now we'd need to use a URL such as `http://localhost:3000/customers` to access our customers.
 
-#REPLACE
-<img src="../images/posts/paging-and-sorting-part-2/good-add.png" class="img-responsive" />
+The other option is to change the ordering of the routes.  Since routes are evaluated in a top down order, switching the order of routes means a URL of `/customer/add` will be evaluated and matched by our `addCustomer` route before it ever gets to our root route.  This is the option we'll go with, so update `customer-routes.js` as follows:
 
- In this way we no longer have a conflict with the `addCustomer` route.
+#####/lib/router/customer-routes.js
+{% highlight JavaScript %}
+Router.route('/customer/add', {
+  name: 'addCustomer'
+});
+
+Router.route('/:page?/:sortField?/:sortDirection?', {  
+  name: 'listCustomers'
+});
+{% endhighlight %}
+
+This is something to keep in mind when using optional parameters, if you aren't careful you can get unintentional route matching going on and you'll find your navigation is no longer doing what you want!
+
+#STOPPED 
 
 ###Hooking up the header links
 OK, so we have our sorting working when the URL is updated manually, now we just need to hook up our header links.  Let's add some events for the links.

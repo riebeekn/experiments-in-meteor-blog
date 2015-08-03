@@ -15,7 +15,7 @@ $(document).ready(function() {
       // for IE
       btn.onclick = function() {selectElementContents(this.nextSibling)};
       
-      btn.innerHTML = '<i class="fa fa-file-code-o fa-2x"></i> Select';
+      btn.innerHTML = 'Select <i class="fa fa-file-code-o fa-2x"></i>';
       this.insertBefore(btn, this.firstChild);
    });
 });
