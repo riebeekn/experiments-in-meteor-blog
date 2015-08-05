@@ -24,7 +24,7 @@ git clone -b part-1a https://github.com/riebeekn/paging-and-sorting.git
 {% endhighlight %}
 
 ###Start up the app
-OK, let’s see where we’re starting from.
+OK, you've either gotten the code from GitHub or are using the existing code you created in Part 1 and 1a, let's see where we're starting from.
 
 #####Terminal
 {% highlight Bash %}
@@ -76,7 +76,7 @@ The first thing we'll do is update the UI to have click-able table headers.
 
 OK, nothing complicated.  We've just switched out the regular table headers with links.  
 
-Before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This is going to require a change to both the publication and then client side we'll need to update the subscription.
+Before hooking up the links let's switch gears and figure out what we want to have happen on the server.  We'll want to specify not only a sort field but also a sort direction.  This is going to require a change to the publication and then client side we'll need to update the subscription.
 
 ###Updating the publication and subscription
 
@@ -158,7 +158,7 @@ Turns out a common pattern when needing to sort on String columns in Mongo is to
 
 So how can we accomplish this in our application?  Duplicating and keeping in sync extra columns seems like it will be a huge error-prone headache!  Luckily there's a package that can help us out.
 
-We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow us to automatically create lower-cased versions of our String fields.  Let's see how it all works.
+We'll add the <a href="https://github.com/aldeed/meteor-collection2" target="_blank">collection2</a> package which will allow us to automatically create lower-cased versions of our `String` fields.  Let's see how it all works.
 
 #####Terminal
 {% highlight Bash %}
@@ -297,7 +297,7 @@ Meteor.methods({
       email: String
     });
 
-    Customers.insert(customer);
+    Customers.insert(customerAttributes);
   }
 });
 {% endhighlight %}
@@ -377,7 +377,7 @@ Template.listCustomers.onCreated(function() {
 ...
 {% endhighlight %}
 
-The only change is that we're now passing along the value of the `sortDirection` URL parameter to the subscription via `Router.current().params.sortDirection` instead of using a hard-coded value.
+The only change is that we're now passing along the value of the `sortDirection` URL parameter to the subscription via `Router.current().params.sortDirection` instead of using a hard-coded value of `1`.
 
 Let's update the publication to handle the parameter properly.
 
@@ -868,7 +868,7 @@ FindFromPublication.publish('newestCustomer', function() {
 });
 {% endhighlight %}
 
-We've removed the code that previously built the sort parameters and instead  call out into `CustomerSortSettings.getSortParams...` to get the sort values.  
+We've removed the code that previously built the sort parameters (i.e. `buildSortParameters()`) and instead call out into `CustomerSortSettings.getSortParams...` to get the sort values.  
 
 Next let's perform a client side sort.
 
