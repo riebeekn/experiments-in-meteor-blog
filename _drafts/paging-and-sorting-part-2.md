@@ -3,23 +3,20 @@ layout:     post
 title:      Paging and Sorting in Meteor - Part 2
 summary: It isn't the sexiest or most interesting of topics, but providing paging and sorting for tabular data is a common requirement when building out an application.  In part 1 we implemented paging, in this post we'll add sorting.
 ---
-#CHECK IF CAN NOT USE 1 -1 FOR INITIAL SORT
-
-This is the second(ish) of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/index.html" target="_blank">part 1</a> and  <a href="/paging-and-sorting-part-1a/index.html" target="_blank">part 1a</a> we looked at paging, now we'll add sorting.
+This is the second(ish) of a two part post on paging and sorting.  In <a href="/paging-and-sorting-part-1/" target="_blank">part 1</a> and  <a href="/paging-and-sorting-part-1a/" target="_blank">part 1a</a> we looked at paging, now we'll add sorting.
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/paging-and-sorting" target="_blank">GitHub</a>.
 
 ##What we'll build
 By the end of this post we'll have updated our simple customer application to include sorting via click-able table headers.
 
-#REPLACE IF GET RID OF CUSTOMERS in route
 <img src="../images/posts/paging-and-sorting-part-2/app-done-part-2.png" class="img-responsive" />
 
 ##Creating the app
 If you followed along with part 1 and 1a you're all set.  If not and you want to jump right into part 2, you can clone part 1a from GitHub as a starting point.
 
 ###Clone the Repo
-Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/paging-and-sorting/tree/part-1a" target="_blank">here</a>.
+Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/paging-and-sorting/archive/part-1a.zip">here</a>.
 
 #####Terminal
 {% highlight Bash %}
@@ -237,13 +234,13 @@ Customers.attachSchema(new SimpleSchema({
 
 In the schema file we're doing a couple of things.  
 
-First we're specifying the type of each column (notice we've added 2 new columns `name_sort` and `surname_sort` to handle our case insensitive sorting).  
+First we're specifying the type of each column (notice we've added 2 new columns `name_sort` and `surname_sort` to handle our case insensitive sorting).
 
 Next we're making use of the `autoValue` function on some of the columns.
 
 For the sort specific columns we're just lower-casing the value of the primary column, i.e. `return surname.value.toLowerCase()`.  We're also lowercasing the email field to avoid any funkiness that might arise if a user enters a mixed case email address.  
 
-Finally we're automatically applying the current date / time to the `acquired` field on an insert and preventing any updates on the column. Since the acquired field represents when a customer was added to the application, the field should only be set on the insert and never updated.
+Finally we're automatically applying the current date / time to the `acquired` field on an insert and preventing any updates on the column. Since the acquired field represents when a customer was added to the application, the field should only be set on insert and never updated.
 
 The `acquired` change means we can get rid of our default dates from `fixture.js` as they'll be over-written by the `autoValue` function anyway.
 
@@ -282,6 +279,25 @@ Meteor.startup(function() {
       surname: 'Driver',
       email: 'cindy.driver@example.com'
     });
+  }
+});
+{% endhighlight %}
+
+We can also remove the code from our customer collection that previously set our acquired dates on insert (i.e. `var customer = _.extend(...`) as this is now handled by the schema file.
+
+#####/lib/collections/customers.js
+{% highlight JavaScript %}
+Customers = new Mongo.Collection('customers');
+
+Meteor.methods({
+  customerInsert: function(customerAttributes) {
+    check(customerAttributes, {
+      name: String,
+      surname: String,
+      email: String
+    });
+
+    Customers.insert(customer);
   }
 });
 {% endhighlight %}
@@ -407,6 +423,8 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
     sort: buildSortParams(sortField, sortDirection)
   });
 });
+...
+...
 {% endhighlight %}
 
 The logic around the sort parameters is starting to get a little bit involved so we've refactored it to a separate function, `buildSortParams`.  The method itself is fairly simple, we're just checking the value of the `sortDirection` that has been passed in.  If the value is `null` we default to ascending.  If the value is present we sort based on the value, converting `desc` to `-1`, otherwise defaulting to `1`.
@@ -507,9 +525,9 @@ Did you see anything a little strange in the screen grab above?  Let's do a free
 
 <img src="../images/posts/paging-and-sorting-part-2/first-name-asc.png" class="img-responsive" />
 
-As we all know users are always being difficult, use software wrong and all around mess up developers lives... and this is yet another example of that, imagine 2 customers having the same name... ridiculous!
+As we all know users are always being difficult, use software wrong and in general mess up the lives of developers... and this is yet another example of that, imagine 2 customers having the same name... ridiculous!
 
-All joking aside, since we can expect duplicate first and last names, we should adjust our sorting logic to deal with duplicates in a reasonable manner.  When ordering on a name field it makes sense to order by the primary name field (i.e. first name, if the first name header is clicked) and then the secondary name field (i.e. last name).
+All joking aside, since we can expect duplicate first and last names, we should adjust our sorting logic to deal with duplicates in a reasonable manner.  When ordering on a name field it makes sense to order by the selected name field (i.e. first name, if the first name header is clicked) and then the secondary non-selected name field (i.e. last name).
 
 So how can we apply a multi column `sort` to a `find` call?  Well turns out the value of a `sort` parameter can be an object (like what we've been doing so far) or an array of arrays.  This second option is what will allow for a multi column sort.  We can pass something like `[["name_sort", "asc"],["surname_sort", "asc"]]` into the find call in order to perform a multi column sort.
 
@@ -608,6 +626,8 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
     sort: buildSortParams(sortField, sortDirection)
   });
 });
+...
+...
 {% endhighlight %}
 
 ####A small problem
@@ -647,8 +667,6 @@ Router.route('/:page?/:sortField?/:sortDirection?', {
 {% endhighlight %}
 
 This is something to keep in mind when using optional parameters, if you aren't careful you can get unintentional route matching going on and you'll find your navigation is no longer doing what you want!
-
-#STOPPED 
 
 ###Hooking up the header links
 OK, so we have our sorting working when the URL is updated manually, now we just need to hook up our header links.  Let's add some events for the links.
@@ -707,18 +725,16 @@ In the event handler we're checking which header was clicked, i.e. `e.target.id 
 
 In `navigateToCustomersRoute` we just navigate to the `listCustomers` route with the appropriate parameters.  
 
-One thing to notice is that we are explicitly setting a `page` parameter via `page: Router.current().params.page || 1`.  We need to explicitly set the page otherwise we could end up with an invalid route.  For example if the user clicks the `First Name` header from the default customer page, i.e. `http://localhost:3000/customers/`, the page parameter is empty.  If we don't set it explicitly to 1 we'll end up with a route of `http://localhost:3000/customers/firstname/asc`, when it should be `http://localhost:3000/customers/1/firstname/asc`.  Then if the `First Name` header is clicked yet again, `firstname` will be grabbed as the page parameter and we'll end up with `http://localhost:3000/customers/firstname/firstname/asc`.
+One thing to notice is that we are explicitly setting a `page` parameter via `page: Router.current().params.page || 1`.  We need to explicitly set the page otherwise we could end up with an invalid route.  For example if the user clicks the `First Name` header from the default customer page, i.e. `http://localhost:3000/`, the page parameter is empty.  If we don't set it explicitly to 1 we'll end up with a route of `http://localhost:3000/firstname/asc`, when it should be `http://localhost:3000/1/firstname/asc`.  Then if the `First Name` header is clicked yet again, `firstname` will be grabbed as the page parameter and we'll end up with `http://localhost:3000/firstname/firstname/asc`.
 
 After setting our page and sort field, we call into the `toggleSortDirection` function to grab our sort direction.  The logic is pretty simple, if we're sorting by a new column we default to an ascending sort otherwise we toggle the current direction.
 
 And with that we should have our sorting all working.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/sort.gif" class="img-responsive" />
 
-... but hey what's going on?  With that first sort by email our records are not looking at all right, they should be sorting by email ascending.
+... but hey what's going on?  With that first sort by last name our records are not looking at all right, they should be sorting by last name descending.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/first-sort-bad.png" class="img-responsive" />
 
 This isn't good, how can that be, everything worked when we were manually entering URLs, so what's going on now?  In fact the sort *still* works if we enter the URL manually and click enter.
@@ -729,15 +745,11 @@ Let's add some console logging to both our server and client code to see if we c
 
 #####/server/publications.js
 {% highlight JavaScript %}
-  ...
-  ...
-
 FindFromPublication.publish('customers', function(skipCount, sortField, sortDirection) {
-  var positiveIntegerCheck = Match.Where(function(x) {
-    check(x, Match.Integer);
-    return x >= 0;
-  });
-  check(skipCount, positiveIntegerCheck);
+  // parameter validations
+  check(skipCount, CustomChecks.positiveIntegerCheck);
+  check(sortField, CustomChecks.sortFieldCheck);
+  check(sortDirection, CustomChecks.sortDirectionCheck)
 
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
@@ -751,12 +763,11 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
   });
 
   // DEBUG
-  var sortKey = Object.keys(sortInfo)[0];
-  var sortValue = sortInfo[sortKey];
+  var sortValue = sortInfo[0];
   var fetched = c.fetch();
 
   console.log('*** RETURNING ***');
-  console.log("* Sort Key: '" + sortKey + "' Sort Value: '" + sortValue + "'");
+  console.log("* ' Sort Value: '" + sortValue + "'");
   console.log(c.fetch());
 
   return c;
@@ -771,7 +782,7 @@ We'll do something similar with our subscription:
 {% highlight JavaScript %}
 Template.listCustomers.helpers({
   customers: function() {
-    var c = Customers.find();
+    var c = Customers.findFromPublication('customers');
     console.log(c.fetch());
     return c;
   },
@@ -779,11 +790,11 @@ Template.listCustomers.helpers({
   ...
 {% endhighlight %}
 
-Now with that all in place let's see what happens when we first click the email header.
+Now with that all in place let's see what happens when we first click the last name header.
 
 <img src="../images/posts/paging-and-sorting-part-2/first-click-server.png" class="img-responsive" />
 
-The output of our publication is what we would expect, we are getting 3 records and the records are sorted by email ascending.
+The output of our publication is what we would expect, we are getting 3 records and the records are sorted by last name descending.
 
 <img src="../images/posts/paging-and-sorting-part-2/first-click-client.png" class="img-responsive" />
 
@@ -806,26 +817,21 @@ touch lib/helpers/customer-sort-settings.js
 {% highlight JavaScript %}
 CustomerSortSettings = {};
 
-CustomerSortSettings.build = function(sortField, sortDirection) {
-  var sortParams = {};
+CustomerSortSettings.getSortParams = function(sortField, sortDirection) {
+  var sortParams = [];
   
-  var direction = sortDirection || 1;
-  if (direction === 'desc') {
-    direction = -1;
-  } else {
-    direction = 1;
-  }
+  var direction = sortDirection || 'asc';
 
-  var field = sortField || 'surname_sort';
-  if (sortField === 'firstname') {
-    field = 'name_sort';
-  } else if (sortField === 'lastname') {
-    field = 'surname_sort';
-  } else if (sortField === 'email') {
-    field = 'email';
+  var field = sortField || 'lastname';
+  if (field === 'firstname') {
+    sortParams.push(['name_sort', direction]);
+    sortParams.push(['surname_sort', direction])
+  } else if (field === 'lastname') {
+    sortParams.push(['surname_sort', direction]);
+    sortParams.push(['name_sort', direction]);
+  } else if (field === 'email') {
+    sortParams.push(['email', sortDirection]);
   } 
-
-  sortParams[field] = direction;
 
   return sortParams;
 }
@@ -837,12 +843,11 @@ Let's update our publication to make use of the new `customer-sort-settings.js` 
 
 #####/server/publications.js
 {% highlight JavaScript %}
-Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
-  var positiveIntegerCheck = Match.Where(function(x) {
-    check(x, Match.Integer);
-    return x >= 0;
-  });
-  check(skipCount, positiveIntegerCheck);
+FindFromPublication.publish('customers', function(skipCount, sortField, sortDirection) {
+  // parameter validations
+  check(skipCount, CustomChecks.positiveIntegerCheck);
+  check(sortField, CustomChecks.sortFieldCheck);
+  check(sortDirection, CustomChecks.sortDirectionCheck)
 
   Counts.publish(this, 'customerCount', Customers.find(), { 
     noReady: true
@@ -851,32 +856,34 @@ Meteor.publish('customers', function(skipCount, sortField, sortDirection) {
   return Customers.find({}, {
     limit: parseInt(Meteor.settings.public.recordsPerPage),
     skip: skipCount,
-    sort: CustomerSortSettings.build(sortField, sortDirection)
+    sort: CustomerSortSettings.getSortParams(sortField, sortDirection)
+  });
+});
+
+FindFromPublication.publish('newestCustomer', function() {
+  return Customers.find({}, {
+    limit: 1,
+    sort: {'acquired': -1}
   });
 });
 {% endhighlight %}
 
-We've removed the code that previously built the sort parameters and instead  call out into `CustomerSortSettings.build...` to get the sort values.  
+We've removed the code that previously built the sort parameters and instead  call out into `CustomerSortSettings.getSortParams...` to get the sort values.  
 
 Next let's perform a client side sort.
-
-#SINCE REMOVING STUFF MAYBE WE SHOULD LIST THE FULL FILE?
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
 Template.listCustomers.helpers({
   customers: function() {
-    return Customers.find({}, {
-      sort: CustomerSortSettings.build(
-        Router.current().params.sortField || 'lastname', 
-        Router.current().params.sortDirection || 'asc')
+    return Customers.findFromPublication('customers', {}, {
+      sort: CustomerSortSettings.getSortParams(
+        Router.current().params.sortField, 
+        Router.current().params.sortDirection)
     });
   },
   ...
   ...
-  // ?? what?? don't understand what we are saying here, reveiw when running //thru with code
-  // NOTE THIS HAS BEEN REMOVED, as it's now in CustomerSortSettings
-  // var toggleSortDirection = function(sortBy) {
 {% endhighlight %}
 
 Super easy, we've just added a sort to our `find()` call which makes use of the helper we created earlier.
@@ -887,13 +894,12 @@ One thing worth cleaning up is the minor logic around the default sort field and
 {% highlight JavaScript %}
 ...
 ...
+CustomerSortSettings.sortField = function() {
+  return Router.current().params.sortField || 'lastname';
+}
 
 CustomerSortSettings.sortDirection = function() {
   return Router.current().params.sortDirection || 'asc';
-}
-
-CustomerSortSettings.sortField = function() {
-  return Router.current().params.sortField || 'lastname';
 }
 
 CustomerSortSettings.toggleSortDirection = function(sortBy) {
@@ -911,21 +917,66 @@ CustomerSortSettings.toggleSortDirection = function(sortBy) {
 
 OK, again we're essentially just moving code around, moving code from `list-customers.js` into our helper class.
 
-Now we can update `list-customers`.
+Now we can update `list-customers`.  The entire file listing is included below but all we've done is to remove the `toggleSortDirection` function, update the `customers` helper and also the `navigateToCustomerRoute` function.
 
 #####/client/templates/customers/list-customers.js
 {% highlight JavaScript %}
+Template.listCustomers.onCreated(function() {
+  var template = this;
+
+  template.autorun(function() {
+    var skipCount = (currentPage() - 1) * Meteor.settings.public.recordsPerPage;
+    template.subscribe(
+      'customers', 
+      skipCount, 
+      Router.current().params.sortField,
+      Router.current().params.sortDirection
+    );
+  });
+});
+
 Template.listCustomers.helpers({
   customers: function() {
-    return Customers.find({}, {
-      // limit: parseInt(Meteor.settings.public.recordsPerPage),
-      sort: CustomerSortSettings.build(
+    return Customers.findFromPublication('customers', {}, {
+      sort: CustomerSortSettings.getSortParams(
         CustomerSortSettings.sortField(), 
         CustomerSortSettings.sortDirection())
     });
   },
-  ...
-  ...
+  prevPage: function() {
+    var previousPage = currentPage() === 1 ? 1 : currentPage() - 1;
+    return Router.routes.listCustomers.path({page: previousPage});
+  },
+  nextPage: function() {
+    var nextPage = hasMorePages() ? currentPage() + 1 : currentPage();
+    return Router.routes.listCustomers.path({page: nextPage});
+  },
+  prevPageClass: function() {
+    return currentPage() <= 1 ? "disabled" : "";
+  },
+  nextPageClass: function() {
+    return hasMorePages() ? "" : "disabled";
+  }
+});
+
+Template.listCustomers.events({
+  'click #btnAddCustomer': function(e) {
+    e.preventDefault();
+
+    Router.go('addCustomer', {page: Router.current().params.page});
+  },
+  'click #firstName,#lastName,#email': function(e) {
+    e.preventDefault();
+
+    if (e.target.id === 'firstName') {
+      navigateToCustomersRoute('firstname');
+    } else if (e.target.id === 'lastName') {
+      navigateToCustomersRoute('lastname');
+    } else if (e.target.id === 'email') {
+      navigateToCustomersRoute('email');
+    }
+  }
+});
 
 var navigateToCustomersRoute = function(sortField) {
   Router.go('listCustomers', {
@@ -934,16 +985,26 @@ var navigateToCustomersRoute = function(sortField) {
     sortDirection: CustomerSortSettings.toggleSortDirection(sortField)
   });
 }
+
+var hasMorePages = function() {
+  var totalCustomers = Counts.get('customerCount');
+  return currentPage() * parseInt(Meteor.settings.public.recordsPerPage) < totalCustomers;
+}
+
+var currentPage = function() {
+  return parseInt(Router.current().params.page) || 1; 
+}
 {% endhighlight %}
 
-So in our `find` call we now get the sort direction and sort field from the helper.
+So in our `find` call for the `customers` helper we now get the sort direction and sort field from the `CustomerSortSettings` helper.
 
 In the `navigate...` function we now call into the toggleSortDirection that we also moved to `customer-sort-settings.js`.
+
+And finally since `toggleSortDirection` is in `customer-sort-setting.js` we can remove it from `list-customers.js`.
 
 ###Updating the next and previous buttons
 We still have one more problem... clicking the page buttons causes the sort field and direction to clear out.
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/url-cleared.gif" class="img-responsive" />
 
 This is easy to fix, we just need to add the new URL parameters to our next and previous links.
@@ -985,16 +1046,8 @@ Now we'll update our table headers to include an icon.
 #####/client/templates/customers/list-customers.js
 {% highlight HTML %}
 <template name="listCustomers">
-  {% raw %}{{> newestCustomer}}{% endraw %}
-  <div class="row">
-    <div class="col-md-12">
-      <a class="btn btn-primary" id="btnAddCustomer">Add customer</a>
-    </div>
-  </div>
-
-  {% raw %}{{#unless Template.subscriptionsReady}}
-    {{> spinner}}
-  {{/unless}}{% endraw %}
+  ...
+  ...
   <table class="table">
     <thead>
       <tr>
@@ -1033,9 +1086,8 @@ So we've added icon classes to each header.  Now we need to define those in `lis
 ... existing code
 
 Template.listCustomers.helpers({
-  customers: function() {
-    ...
-    ...
+  ...
+  ...
   ,
   firstNameIconClass: function() {
     return CustomerSortSettings.getSortIconClass("firstname");
@@ -1069,10 +1121,11 @@ CustomerSortSettings.getSortIconClass = function(element) {
 
 Pretty simple, if the passed in element is the current sort field, we return the `fa-sort-asc` or `fa-sort-desc` icon class based on the current sort direction.  Otherwise we return the double-arrow default sort icon, i.e. `fa-sort`.
 
-##Summary
 And with that... sorting, paging, icons... done!
 
-#REPLACE
 <img src="../images/posts/paging-and-sorting-part-2/done.gif" class="img-responsive" />
+
+##Summary
+So... paging and sorting turns out to be a little tricky in Meteor, as evidenced by <a href="/paging-and-sorting-part-1a/" target="_blank">part 1a</a> even trickier than I first imagined!  The good news is that with the help of some great 3rd party packages it's more than doable.  
 
 Thanks for reading and hope this series of posts helped you get sorted (ha, ha, sorry... bad jokes are the only ones I got).
