@@ -3,20 +3,22 @@
 
 $(document).ready(function() {
    $('.highlight').each(function() {
-      var ts = Date.now();
-      var btn = document.createElement('button');
-      btn.setAttribute('type', 'button');
-      btn.setAttribute('class', 'btn-code-select');
-      btn.setAttribute('id', ts);
-      
-      // for Firefox
-      btn.setAttribute('onclick', 'selectElementContents(this.nextSibling);');
+      if (!$(this).parent().hasClass('no-select-button')) {
+        var ts = Date.now();
+        var btn = document.createElement('button');
+        btn.setAttribute('type', 'button');
+        btn.setAttribute('class', 'btn-code-select');
+        btn.setAttribute('id', ts);
+        
+        // for Firefox
+        btn.setAttribute('onclick', 'selectElementContents(this.nextSibling);');
 
-      // for IE
-      btn.onclick = function() {selectElementContents(this.nextSibling)};
-      
-      btn.innerHTML = 'Select <i class="fa fa-file-code-o fa-2x"></i>';
-      this.insertBefore(btn, this.firstChild);
+        // for IE
+        btn.onclick = function() {selectElementContents(this.nextSibling)};
+        
+        btn.innerHTML = 'Select <i class="fa fa-file-code-o fa-2x"></i>';
+        this.insertBefore(btn, this.firstChild);
+      }
    });
 });
 
