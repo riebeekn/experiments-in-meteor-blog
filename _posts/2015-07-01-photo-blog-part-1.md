@@ -211,6 +211,7 @@ So first off, enter a name and description for the policy.  Using a descriptive 
 
 Next, alter the policy document to limit the policy to just the bucket created earlier.  For example the default policy document is:
 
+<div class="no-select-button">
 {% highlight JavaScript %}
 {
     "Version": "2012-10-17",
@@ -223,9 +224,11 @@ Next, alter the policy document to limit the policy to just the bucket created e
     ]
 }
 {% endhighlight %}
+</div>
 
 Following our example with a bucket named 'nicks-photo-blog', we would alter the policy like so:
 
+<div class="no-select-button">
 {% highlight JavaScript %}
 {
     "Version": "2012-10-17",
@@ -241,6 +244,7 @@ Following our example with a bucket named 'nicks-photo-blog', we would alter the
     ]
 }
 {% endhighlight %}
+</div>
 
 The final policy should look something like.
 
@@ -413,7 +417,28 @@ Images.allow({
 });
 {% endhighlight %}
 
-So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for CollectionFS to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.  We then define our collection, which we are naming 'Images'.  In our collection definition we specify the store (which we defined via the `imageStore` variable) and a filter, the filter just limits the type of files that can be uploaded, in our case we are restricting uploads to images.
+So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for CollectionFS to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.  
+
+*Note: depending on the region you selected for your S3 bucket, you may need to pass in the region value to the S3 store.  If you get an error such as 'Hostname/IP doesn't match certificate's altnames', try adding a region value:*
+
+#####/lib/collections/image.js
+{% highlight JavaScript %}
+if (Meteor.isServer) {
+  var imageStore = new FS.Store.S3("images", {
+    /* OPTIONAL IN MOST CASES
+      region: "eu-west-1", // substitute the region you selected
+    */
+
+    /* REQUIRED */
+    accessKeyId: Meteor.settings.AWSAccessKeyId, 
+    secretAccessKey: Meteor.settings.AWSSecretAccessKey, 
+    bucket: Meteor.settings.AWSBucket
+  });
+  ...
+  ...
+{% endhighlight %}
+
+After setting up our image store, we then define our collection, which we are naming 'Images'.  In our collection definition we specify the store (which we defined via the `imageStore` variable) and a filter, the filter just limits the type of files that can be uploaded, in our case we are restricting uploads to images.
 
 The `if (Meteor.isClient)...` block defines the client version of the Collection.  The main difference being that we don't set our S3 keys.  This is a key point, we don't want to make our keys available on the client, if we did someone could grab them using the browser console, for instance if we defined `settings.json` like so:
 

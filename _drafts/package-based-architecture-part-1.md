@@ -1,35 +1,34 @@
 ---
 layout:     post
 title:      Converting a project to a package based architecture
-summary: I recently viewed a great <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">screen cast</a> by <a href="http://sachagreif.com/" target="_blank">Sacha Grief</a> where he explains the package based architecture used by the open source <a href="http://www.telescopeapp.org/" target="_blank">Telescope</a> project.  In this post we convert an existing application to a project based architecture.
+summary: I recently viewed a great <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">screen cast</a> by <a href="http://sachagreif.com/" target="_blank">Sacha Grief</a> where he explains <a href="http://www.telescopeapp.org/" target="_blank">Telescope's</a> package based architecture.  In this post we convert an existing application to a package based architecture.
 ---
-I recently viewed a great <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">screen cast</a> by <a href="http://sachagreif.com/" target="_blank">Sacha Grief</a> where he explains the package based architecture used by the open source <a href="http://www.telescopeapp.org/" target="_blank">Telescope</a> project.
+I recently viewed a great <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">screen cast</a> by <a href="http://sachagreif.com/" target="_blank">Sacha Grief</a> where he explains <a href="http://www.telescopeapp.org/" target="_blank">Telescope's</a> package based architecture.
 
 We're going to take an existing application and apply the principles laid out in Sacha's screen cast to convert it to a package based architecture.  We'll be replicating a lot of the conventions used in Telescope very closely such as utilizing a lib and core package.
 
 ##Why packages?
-So before we get going, why would one want to use a package based architecture in a Meteor project?  Well, there are a number of reasons that Sacha covers in his screen cast, which I'll summarize here:
+So before we get going, what's the point of using a package based architecture?  
+Well, there are a number of reasons that Sacha covers in his screen cast:
 
-* File load order.  The load order of files is explicit when using packages, this means you can avoid any load order issues you may have run into with a traditional structure.
-* Code organization.  With packages, organization of your code is more modular and coupling between components is reduced.
+* File load order.  The load order of files is explicit when using packages. This means you can avoid any load order issues that would occur with a traditional structure.
+* Code organization.  With packages, organization of your code is more modular and coupling between components is reduced or eliminated completely.
   * Typically each feature has it's own package.
   * Each feature is independent, can take out a package and the application still works.
-* Meteor update.  Updates on your application can be applied via Meteor update. (test this out!!!!)
+* Meteor update.  Updates on your application can be handled via Meteor update.
 * Customizations are easier.  If someone alters the source to add features, this can be done via a package, thus ensuring the core code of the application is not compromised.
 
 ##Why not packages?
-The only real drawback that I see to using a package based architecture is that it adds some minor complexity and may be unfamiliar to other developers who might be looking at your code.
+The only real drawback that I see to using a package based architecture is that it adds some minor complexity to your project.
 
-There are a couple of additional steps involved in adding a new file when using packages, you need to specify the files directly in the package file.
-
-For small projects, a package approach *might* be overkill.  I really am impressed with some of the benefits of a package approach however, after running through this tutorial hopefully you'll have a better idea of whether you want to give it a go for your own projects.
+For small projects, a package approach *might* be overkill.  However, I'm very impressed with the package approach and feel even for small projects it might be beneficial.
 
 ##What we'll build
 <img src="../images/posts/package-based-architecture-part-1/app-done.png" class="img-responsive" />
 
 For those of you who have gone through the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial, this is going to look familiar.  Sorry about the recycled application, but taking an existing application and converting it I think is good way to demonstrate the differences between a standard and package based architecture.
 
-Note we won't be doing much explanation of examination of the actual implementation code in this post.  Mostly we'll be moving code around and dealing with `package.js` files.  If you want an explanation of the code, checkout the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial.
+Note we won't be doing much explanation or examination of the actual implementation code, mostly we'll be moving code around and dealing with `package.js` files.  If you want an explanation of the code, checkout the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial.
 
 ##Creating the app
 If you've gone through the paging and sorting tutorial you can use the existing code you built out from that.  If not or if you want to start from a fresh code base you can clone the starting point for this post from GitHub.
@@ -47,7 +46,7 @@ Open up the code in your text editor of choice and you'll see a pretty standard 
 
 <img src="../images/posts/paging-and-sorting-part-1/project-structure.png" class="img-responsive" />
 
-By the time we're done, our project structure will look radically different: <img src="../images/posts/package-based-architecture-part-1/" class="img-responsive" />
+By the time we're done, our project structure will look radically different: <img src="../images/posts/package-based-architecture-part-1/packages-dir-structure-1.png" class="img-responsive" />
 
 ###Start up the app
 OK, let's see where we're starting from.
@@ -60,10 +59,16 @@ meteor --settings settings.json
 
 You should now see the starting point for our application when you navigate your browser to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>.
 
-##An over-view of the packages we'll be creating
-Our goal is to break up the code into a package based structure.  Obviously our application is a contrived example and we're going to go a little package crazy with it, we'll be splitting up the "list", "add", and "newest customer" functionality into independent packages.  This is for illustration purposes, with a real application, likely all the customer functionality would be contained in a single package.
+<img src="../images/posts/package-based-architecture-part-1/app-done.png" class="img-responsive" />
 
-We'll be creating the following packages:
+##An over-view of the packages we'll be creating
+Our goal is to break up the code into a package based structure.  
+
+Now our application is a contrived example and as a result we're going to go a little package crazy with it, we'll be splitting up the "list", "add", and "newest customer" functionality.  
+
+This is for illustration purposes, with a real application, likely all the customer functionality would be contained in a single package, i.e. `customertracker-customer`.
+
+However, we'll be creating the following packages:
 
 * customertracker-lib
 * customertracker-core
@@ -72,12 +77,12 @@ We'll be creating the following packages:
 * customertracker-add
 * customertracker-newest
 
-As we tackle each package we'll explain it's purpose, we'll also be taking an iterative approach so our application will still be usable throughout the conversion process.
+We'll be taking an iterative approach so our application will still be usable throughout the conversion process.
 
-So let's get started!
+Let's get started!
 
 ##Creating the lib package
-We'll be following the same convention as <a href="http://www.telescopeapp.org/" target="_blank">Telescope</a> and creating a lib package.  This package contains all our core Meteor and 3rd party references and also sets up a global namespace for our application.
+We'll be following the same convention as <a href="http://www.telescopeapp.org/" target="_blank">Telescope</a> and creating a `lib` package.  The purpose of this package is to contain all our core Meteor and 3rd party references.  This is also where we set up the global namespace for our application.
 
 ###Implementation
 
@@ -88,7 +93,7 @@ touch packages/customertracker-lib/package.js
 touch packages/customertracker-lib/lib/core.js
 {% endhighlight %}
 
-The first thing we'll do is set up a global namespace for our project, we'll call our application 'Customer Tracker' so will go with that for the namespace.
+The first thing we'll do is set up the global namespace, we'll call our application 'Customer Tracker' so will go with that for the namespace.
 
 #####/packages/customertracke-lib/lib/core.js
 {% highlight JavaScript %}
@@ -97,11 +102,11 @@ CustomerTracker = {};
 CustomerTracker.VERSION = '0.0.1';
 {% endhighlight %}
 
-So all we are doing here is setting up a global namespace and setting a version attribute on the namespace.  The point of a global namespace is to ensure we don't end up with namespace collisions with 3rd party components or other javascript libraries.
+All we're doing here is setting up a namespace and setting a version attribute on the namespace.  The point of a global namespace is to ensure we don't end up with namespace collisions with 3rd party components or other javascript libraries.
 
 Now let's move onto the `package.js` file.
 
-As mentioned the main purpose of the lib package is to reference our 3rd party packages, so let's see what packages our application currently uses:
+The main purpose of the `lib` package is to reference our 3rd party packages, so let's see what packages our application currently uses:
 
 #####Terminal
 {% highlight Bash %}
@@ -122,12 +127,8 @@ Package.describe({
 });
 
 Package.onUse(function (api) {
-
-  // specifies the version of Meteor required
-  // here we're requring version 1.0  or greater of meteor
   api.versionsFrom(['METEOR@1.0']); 
   
-  // 3rd party packages to use
   var packages = [
     'meteor-platform',
     'iron:router@1.0.9',
@@ -142,15 +143,12 @@ Package.onUse(function (api) {
 
   api.use(packages);
 
-  // means packages that use this package can use the
-  // packages.
   api.imply(packages);
 
   api.addFiles([
     'lib/core.js',
   ], ['client', 'server']);
 
-  // things we want visible outside of the package
   api.export([
     'CustomerTracker'
   ]);
@@ -170,65 +168,60 @@ Package.describe({
 {% endhighlight %}
 </div>
 
-This section of the file just sets some basic attributes for the package.  The `name` attribute is important as that is what we'll use to refer to the package when we add it to our application, i.e. `meteor add customertracker:lib`.
+This section of the file just sets some basic attributes for the package.  The `name` attribute is important as that is what we'll use to refer to the package when we add it to our application, i.e. when we issue the `meteor add customertracker:lib` command.
 
-The version is also a critical piece of information as it is used by `meteor update` to indicate when a new version of the package is available.  TEST THIS!
+The version is also a critical piece of information as it is used by `meteor update` to indicate when a new version of the package is available.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
 Package.onUse(function (api) {
-
-  // specifies the version of Meteor required
-  // here we're specifying version 1.0  or greater of meteor
   api.versionsFrom(['METEOR@1.0']);
 {% endhighlight %} 
 </div>
 
-OK, next we have the `package.onUse` block which is basically the definition of the package.  The `api.versionsFrom` line indicates the version Meteor that our package is reliant upon.  We've specified `1.0`, so we're saying our package can be used with any version of Meteor 1.0 or higher.
+OK, next we have the `package.onUse` block which is basically the definition of the package.  The `api.versionsFrom` line indicates the version of Meteor that our package requires  We've specified `1.0`, so we're saying our package can be used with any version of Meteor 1.0 or higher.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
-  // 3rd party packages to use
-  var packages = [
-    'meteor-platform',
-    'iron:router@1.0.9',
-    'twbs:bootstrap@3.3.5',
-    'sacha:spin@2.3.1',
-    'tmeasday:publish-counts@0.6.0',
-    'percolate:find-from-publication@0.1.0',
-    'aldeed:collection2@2.3.3',
-    'natestrauser:font-awesome@4.3.0',
-    'iron:router@1.0.9'
-  ];
+var packages = [
+  'meteor-platform',
+  'iron:router@1.0.9',
+  'twbs:bootstrap@3.3.5',
+  'sacha:spin@2.3.1',
+  'tmeasday:publish-counts@0.6.0',
+  'percolate:find-from-publication@0.1.0',
+  'aldeed:collection2@2.3.3',
+  'natestrauser:font-awesome@4.3.0',
+  'iron:router@1.0.9'
+];
 
-  api.use(packages);
+api.use(packages);
 
-  // means packages that use this package can use the
-  // packages.  CHANGE???
-  api.imply(packages);
+api.imply(packages);
 {% endhighlight %}
 </div>
 
-Here's where the information we gleaned from `meteor list` comes into play, we need to include all the packages used by our application, and do so by declaring a `packages` array.  Note for third party packages the version number is required.  `api.use` is what indicates we need to use the specified list of packages in the current package.
+Here's where the information we gleaned from `meteor list` comes into play.  We need to include all the packages used by our application, so set up an array, `packages`, that contains them.  Note for third party packages the version number is required.  
 
-`api.imply` exposes the internal packages of the current package to any packages that use the current package.  This means for instance that if you use the current package in a second package, say `secondpackage`, then `secondpackage` has access to `iron:router` etc. without having to explicitly include it in `secondpackage`'s `package.js` file.  This is very useful as it means you only need to specify a dependency once and don't need to worry about conflicting version numbers in different of duplicate third party packages in your `package.js` files.
+`api.use` indicates which packages are required by our `lib` package.
+
+`api.imply` exposes the internal packages of the `lib` package to any packages that in turn use `lib`.  This means for instance that if you use the `lib` package in a second package, say `secondpackage`, then `secondpackage` has access to `iron:router` etc. without having to explicitly include it in it's own `package.js` file.  This is very useful as it means you only need to specify a dependency once and don't need to worry about conflicting version numbers for the same 3rd party package creeping into different parts of your application's `package.js` files.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
-  api.addFiles([
-    'lib/core.js',
-  ], ['client', 'server']);
+api.addFiles([
+  'lib/core.js',
+], ['client', 'server']);
 {% endhighlight %}
 </div>
 
-Unlike a traditionally structured Meteor application you need to explicitly specify which files Meteor should load up.  For this package, we only have the one file, `core.js` and it should be available on both the client and server, thus the `['client', 'server']` array.
+Unlike a traditionally structured Meteor application you need to explicitly specify which files Meteor should load up.  For `lib`, we only have the one file, `core.js` and it should be available on both the client and server, thus the `['client', 'server']` array.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
-  // things we want visible outside of the package
-  api.export([
-    'CustomerTracker'
-  ]);
+api.export([
+  'CustomerTracker'
+]);
 });
 {% endhighlight %}
 </div>
@@ -236,7 +229,9 @@ Unlike a traditionally structured Meteor application you need to explicitly spec
 Finally we need to export any variables we want to have access to outside of our package.  We want access to the `CustomerTracker` namespace variable, so we've added an export entry for it.
 
 ###Usage
-Now comes the exciting part, actually using the package we created.  First thing we'll want to do is blank out our existing package file.
+Now comes the exciting part, using the package we created.  First thing we'll do is blank out our existing package file.
+
+#STOPPED
 
 #####/.meteor/packages.js
 {% highlight JavaScript %}
