@@ -21,12 +21,12 @@ Well, there are a number of reasons that Sacha covers in his screen cast:
 ##Why not packages?
 The only real drawback to using a package based architecture is that it adds some minor complexity.
 
-For small projects, a package approach *might* be overkill.  However, I'm very impressed with the package approach and feel even for small projects it could worthwhile despite the added overhead.
+For smaller projects, a package approach *might* be overkill.  However, I'm very impressed with the package approach and feel even for small projects it could worthwhile despite the added overhead.
 
 ##What we'll build
 <img src="../images/posts/package-based-architecture-part-1/after-core.png" class="img-responsive" />
 
-For those of you who have gone through the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial, this is going to look familiar.  Sorry about the recycled application, but taking an existing application seemed a good way to demonstrate the differences between a standard and package based architecture.
+For those of you who have gone through the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial, this is going to look familiar.  Sorry about the recycled application, but taking an existing application seemed like a good way to demonstrate the differences between a standard and package based architecture.
 
 Note we won't be doing much explanation or examination of the actual implementation code, mostly we'll be moving code around and dealing with `package.js` files.  If you want an explanation of the code, check out the <a href="/paging-and-sorting-part-1/" target="_blank">paging and sorting</a> tutorial.
 
@@ -68,7 +68,7 @@ Now our application is a contrived example and as a result we're going to go a l
 
 This is for illustration purposes, with a real application, likely all the customer functionality would be contained in a single package, i.e. `customertracker-customer`.
 
-However for our purposes, we'll be creating the following packages:
+However, for our purposes, we'll be creating the following packages:
 
 * customertracker-lib
 * customertracker-core
@@ -158,6 +158,7 @@ Package.onUse(function (api) {
 
 We'll quickly go over each section of `package.js`.  For an excellent and very detailed explanation of Meteor packages, check out <a href="http://themeteorchef.com/recipes/writing-a-package/" target="_blank">writing a package</a> by the <a href="http://themeteorchef.com/" target="_blank">Meteor Chef</a>.
 
+####The describe section
 <div class="no-select-button">
 {% highlight JavaScript %}
 Package.describe({
@@ -173,6 +174,7 @@ This section of the file just sets some basic attributes for the package.  The `
 
 The version is also a critical piece of information as it is used by `meteor update` to indicate when a new version of the package is available.
 
+####Specifying compatible Meteor versions
 <div class="no-select-button">
 {% highlight JavaScript %}
 Package.onUse(function (api) {
@@ -182,6 +184,7 @@ Package.onUse(function (api) {
 
 OK, next we have the `package.onUse` block which is basically the definition of the package.  The `api.versionsFrom` line indicates the version of Meteor that our package requires.  We've specified `1.0`, so we're saying our package can be used with any version of Meteor 1.0 or higher.
 
+####Linking to 3rd party packages and Meteor core packages
 Next we specify the packages our custom package uses.
 
 <div class="no-select-button">
@@ -212,6 +215,7 @@ Here's where the information we gleaned from `meteor list` comes into play.  We 
 
 This is very useful as it means you only need to specify a dependency once and don't need to worry about conflicting version numbers for the same 3rd party package creeping into different parts of your application's `package.js` files.  If you're a little confused, don't worry, when we implement the `core` package we'll see a concrete example of `imply` which will help to better illustrate why `imply` is so useful.
 
+####Specifying the files to load
 Next we have the `addFiles` section.
 
 <div class="no-select-button">
@@ -224,6 +228,7 @@ api.addFiles([
 
 Unlike a traditionally structured Meteor application you need to explicitly specify which files Meteor should load.  For `lib`, we only have the one file, `core.js` and it should be available on both the client and server, thus the `['client', 'server']` array.
 
+####Exporting items available outside the package
 Finally we need to export any variables we want to have access to outside of our package.  
 
 <div class="no-select-button">
@@ -267,7 +272,7 @@ Also we now have access to our namespace variable.
 
 <img src="../images/posts/package-based-architecture-part-1/version.png" class="img-responsive" />
 
-Our package file now contains our single custom package:
+Our main package file now contains the single custom package we created:
 
 #####/.meteor/packages.js
 {% highlight JavaScript %}
@@ -561,6 +566,7 @@ Let's go on a quick diversion and see an example of load order in action.  We ca
 #####/packages/customertracker-customer/package.js
 {% highlight JavaScript %}
 api.addFiles([
+  'lib/routes.js',
   'lib/schemas.js',
   'lib/collections.js'
 ], ['client', 'server']);
@@ -663,7 +669,7 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
 // });
 {% endhighlight %}
 
-OK, simple we've just commented out the publication we'll be moving.
+Nothing complicated going on here, we've just commented out the publication we'll be moving.
 
 Now let's add it to our package.
 
@@ -714,7 +720,7 @@ Package.onUse(function(api) {
 });
 {% endhighlight %}
 
-OK, nothing complicated going on here, we're just adding the necessary files and referencing our `core` package.
+Pretty simple, we're just adding the necessary files and referencing our `core` package.
 
 ###Usage
 Time to get our newest customer showing up again.
@@ -732,7 +738,7 @@ And with that our newest customer component is once again showing up in the UI.
 Next let's move the list functionality into a package.
 
 ###Implementation
-This is getting redundant right?  But that's a good thing, we're getting the hang of creating these packages and so far it's turning out to be a snap.  Let's get some files and directories created.
+This is getting redundant right?  But that's a good thing, we're getting the hang of creating these packages and so far it's turning out to be pretty easy.  Let's get some files and directories created.
 
 #####Terminal
 {% highlight Bash %}
@@ -930,17 +936,21 @@ So now that we have everything wrapped up in packages we can do some clean up on
 
 #####Terminal
 {% highlight Bash %}
-rm -r client
-rm -r lib
-rm -r server
+trash client
+trash lib
+trash server
 {% endhighlight %}
 
-Pretty sweet, everything is now completely within package directories.
+I recently was made aware of the <a href="http://hasseg.org/trash/" target="_blank">trash</a> command via this excellent <a href="https://medium.com/@SamCorcos/building-campaignhawk-with-meteor-and-react-part-2-d4551708dcde" target="_blank">post</a> by <a href="https://medium.com/@SamCorcos" target="_blank">Sam Corcos</a>.  As per the trash homepage, trash can be easily installed via Homebrew with `brew install trash`.
+
+You can also go with `rm -r client` or manually remove the folders if you don't want to install trash.
+
+In any case however you delete your folders you should now see that everything is completely within package directories.
 
 <img src="../images/posts/package-based-architecture-part-1/package-dir-structure.png" class="img-responsive" />
 
 ##Updating our packages to be more modular
-There are a few artifacts of the original implementation which limit the modularity of the package based implementation.  Ideally we want our 'feature' packages, i.e. the 'list', 'add', and 'new' packages to work independently.
+There are a few artifacts of the original implementation which limit the modularity of our package based implementation.  Ideally we want our 'feature' packages, i.e. the 'list', 'add', and 'new' packages to work independently.
 
 This isn't currently the case however, if we remove our list functionality the application crashes, i.e.
 
@@ -985,9 +995,9 @@ customertracker:list
 <img src="../images/posts/package-based-architecture-part-1/bad-add-btn.png" class="img-responsive" />
 
 ###Making our three feature packages modular.
-To enhance modularity we will create a main index page for our customer functionality.  We'll also remove the add button from the list customer template and put it in it's own template.
+To enhance modularity we will create a main index page for our customer functionality.  We'll also remove the add button from the `listCustomer` template and put it in it's own template.
 
-Let's start off by creating the index page.  A good place for this file will be in the `customer` package.
+Let's start off by creating the index page.  A good place for this file will be in the `customer` package; it is specific to our customer functionality but not associated with the "list", "new", or "add" functionality.
 
 #####Terminal
 {% highlight Bash %}
@@ -1006,7 +1016,7 @@ touch packages/customertracker-customer/lib/client/templates/customer-index.html
 
 OK, so all we're doing here is laying out the components we want on our main index page.  What's up with that `render` function?  Well we want to only render components that exist so we'll create a helper to handle the rendering of our optional components.
 
-We'll throw this into our core package.
+We'll throw this into our core package as it's something that could be useful outside of the customers functionality.  For instance if we enhanced our application to include orders, we might want access to the helper in the orders packages, and these packages might not reference `customertracker:customer`.
 
 #####Terminal
 {% highlight Bash %}
@@ -1028,6 +1038,14 @@ So let's update our package files to take into account our new items.
 {% highlight JavaScript %}
 ...
 ...
+  api.use(packages);
+  
+  api.addFiles([
+    'lib/collections.js',
+    'lib/routes.js',
+    'lib/schemas.js'
+  ], ['client', 'server']);
+
   api.addFiles([
     'lib/server/fixtures.js'
   ], 'server');
@@ -1046,6 +1064,10 @@ So let's update our package files to take into account our new items.
 {% highlight JavaScript %}
 ...
 ...
+  api.use(packages);
+  
+  api.imply(packages);
+
   api.addFiles([
     'lib/router/config.js',
   ], ['client', 'server']);
@@ -1099,8 +1121,8 @@ Let's update our package file.
 
 #####/packages/customertracker-add/package.js
 {% highlight JavaScript %}
-  ...
-  ...
+...
+...
   api.addFiles([
     'lib/client/stylesheets/styles.css',
     'lib/client/templates/add-customer.html',
@@ -1116,12 +1138,21 @@ Now we need to remove the add button and newest customer code from our list pack
 #####/packages/customertracker-list/lib/client/templates/list-customers.html
 {% highlight HTML %}
 <template name="listCustomers">
+<!--
+  {% raw %}{{#if hasNewCustomerTemplate}}
+    {{> newestCustomer}}
+  {{/if}}{% endraw %}
+  <div class="row">
+    <div class="col-md-12">
+      <a class="btn btn-primary" id="btnAddCustomer">Add customer</a>
+    </div>
+  </div>
+-->
+
   {% raw %}{{#unless Template.subscriptionsReady}}
     {{> spinner}}
   {{/unless}}{% endraw %}
   <table class="table">
-    ...
-    ...
 {% endhighlight %}
 
 So we've removed the rendering of both the `newestCustomer` template and the add button code.
@@ -1132,6 +1163,11 @@ We can now remove the add button handler.
 {% highlight JavaScript %}
 ...
 Template.listCustomers.events({
+  // 'click #btnAddCustomer': function(e) {
+  //   e.preventDefault();
+
+  //   Router.go('addCustomer', {page: Router.current().params.page});
+  // },
   'click #firstName,#lastName,#email': function(e) {
     e.preventDefault();
 
@@ -1179,7 +1215,9 @@ Router.route('/:page?/:sortField?/:sortDirection?', {
 });
 {% endhighlight %}
 
-Finally we need to update code that refers to the old `listCustomers` route to refer to the new `customerIndex` route instead.
+We want our root route to hit our new `customerIndex` template instead of directly hitting the  `listCustomers` template.
+
+With the router changes we need to update code that refers to the old `listCustomers` route to refer to the new `customerIndex` route instead.
 
 #####/packages/customertracker-list/lib/client/templates/list-customers.js
 {% highlight JavaScript %}
