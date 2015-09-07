@@ -5,7 +5,7 @@ summary: I recently viewed a great <a href="http://www.telescopeapp.org/blog/tel
 ---
 I recently viewed a great <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">screen cast</a> by <a href="http://sachagreif.com/" target="_blank">Sacha Grief</a> where he explains <a href="http://www.telescopeapp.org/" target="_blank">Telescope's</a> package based architecture.
 
-We're going to take an existing application and apply the principles laid out in Sacha's screen cast to convert it to a package based architecture.  We'll be replicating a lot of the conventions used in Telescope such as utilizing a lib and core package.
+We're going to take an existing application and apply the principles laid out in Sacha's screen cast to convert the application to a package based architecture.  We'll be replicating a lot of the conventions used in Telescope such as utilizing a lib and core package.
 
 ##Why packages?
 So before we get going, what's the point of using a package based architecture?  
@@ -21,7 +21,7 @@ Well, there are a number of reasons that Sacha covers in his screen cast:
 ##Why not packages?
 The only real drawback to using a package based architecture is that it adds some minor complexity.
 
-For smaller projects, a package approach *might* be overkill.  However, I'm very impressed with the package approach and feel even for small projects it could worthwhile despite the added overhead.
+For smaller projects, a package approach *might* be overkill.  However, I'm very impressed with the package approach and feel even for small projects it could be worthwhile despite the added overhead.
 
 ##What we'll build
 <img src="../images/posts/package-based-architecture-part-1/after-core.png" class="img-responsive" />
@@ -96,7 +96,7 @@ touch packages/customertracker-lib/lib/core.js
 
 Then we'll set up the global namespace.  We'll call our application 'Customer Tracker' so will go with that for the namespace.
 
-#####/packages/customertracke-lib/lib/core.js
+#####/packages/customertracker-lib/lib/core.js
 {% highlight JavaScript %}
 CustomerTracker = {};
 
@@ -363,7 +363,7 @@ FindFromPublication.publish('customers', function(skipCount, sortField, sortDire
 
 Simple, we've just updated `CustomChecks...` to `CustomerTracker.checks...`.
 
-Next let's update our stylesheet in both our main application and the package.
+Next let's update our stylesheet in both our existing application and the package.
 
 #####/client/stylesheets/styles.css
 {% highlight CSS %}
@@ -389,7 +389,7 @@ body {
 }
 {% endhighlight %}
 
-All we're doing is moving the "core" style into our core package.  Since we don't have much styling going on, it's only the `body` style element that we need to move.
+All we're doing is moving the "core" styles into our core package.  Since we don't have much styling going on, it's only the `body` style element that we need to move.
 
 Now that we've moved some of our layout and router code out of our application and updated our stylesheets, we'll see that the UI isn't looking too hot.
 
@@ -397,7 +397,7 @@ Now that we've moved some of our layout and router code out of our application a
 
 Our styling is gone and our publication for listing customers is failing due to the custom check code not being available.
 
-Let's update our package file so that we can get our original look and feel back along with our publication back working.
+Let's update our package file so that we can get our original look and feel back and get the publication working again.
 
 #####/packages/customertracker-core/package.js
 {% highlight JavaScript %}
@@ -468,7 +468,7 @@ mkdir -p packages/customertracker-customer/lib/server
 touch packages/customertracker-customer/package.js
 {% endhighlight %}
 
-Now we'll move our schema and fixture file out of our main application and copy over our collection file.
+Now we'll move our schema and fixture file out of our existing application and copy over our collection file.
 
 #####Terminal
 {% highlight Bash %}
@@ -482,7 +482,7 @@ As expected this is going to cause all kinds of trouble for our application.
 
 <img src="../images/posts/package-based-architecture-part-1/404.png" class="img-responsive" />
 
-Before getting started on our package file, we need to make an update to our collection in both the package and main application.
+Before getting started on our package file, we need to make an update to our collection in both the package and existing application.
 
 #####/packages/customertracker-customer/lib/collections.js
 {% highlight JavaScript %}
@@ -575,6 +575,8 @@ api.addFiles([
 <img src="../images/posts/package-based-architecture-part-1/load-order-crash.png" class="img-responsive" />
 
 As the console log suggests, the problem is that if we attempt to load our schema file before the collection file, we'll be attempting to attach our schema onto a customers collection that is not yet defined.
+
+So this illustrates how you can control the load order of a package, the files get loaded in the order they are specified in the `addFiles` array.  This can be a much more elegant solution to load order issues compared to a traditional Meteor application where you would need to create nested folders or rename files.
 
 ##Creating the newest customer package
 OK, time to package up some of our UI elements.  The `customertracker-newest` package will be responsible for the "most recently acquired" section of our UI, i.e.
@@ -893,7 +895,7 @@ Everything in the original file has been commented out, let's add the button sty
 
 Now let's update the package file.
 
-#####/packages/customertracker:add/package.js
+#####/packages/customertracker-add/package.js
 {% highlight JavaScript %}
 Package.describe({
   name: 'customertracker:add',
@@ -921,6 +923,8 @@ Package.onUse(function(api) {
 });
 {% endhighlight %}
 
+No explanation needed, we've seen this all before!
+
 ###Usage
 OK, let's get our add functionality back working.
 
@@ -929,7 +933,7 @@ OK, let's get our add functionality back working.
 meteor add customertracker:add
 {% endhighlight %}
 
-And there we go, we're package complete!
+And there we go, we're package complete!  Our application is working as before but everything is running from packages.
 
 ##Some clean-up
 So now that we have everything wrapped up in packages we can do some clean up on our directory structure.
@@ -941,11 +945,11 @@ trash lib
 trash server
 {% endhighlight %}
 
-I recently was made aware of the <a href="http://hasseg.org/trash/" target="_blank">trash</a> command via this excellent <a href="https://medium.com/@SamCorcos/building-campaignhawk-with-meteor-and-react-part-2-d4551708dcde" target="_blank">post</a> by <a href="https://medium.com/@SamCorcos" target="_blank">Sam Corcos</a>.  As per the trash homepage, trash can be easily installed via Homebrew with `brew install trash`.
+I was recently made aware of the <a href="http://hasseg.org/trash/" target="_blank">trash</a> command via this excellent <a href="https://medium.com/@SamCorcos/building-campaignhawk-with-meteor-and-react-part-2-d4551708dcde" target="_blank">post</a> by <a href="https://medium.com/@SamCorcos" target="_blank">Sam Corcos</a>.  As per the trash homepage, trash can be easily installed via Homebrew with `brew install trash`.
 
-You can also go with `rm -r client` or manually remove the folders if you don't want to install trash.
+You can also go with `rm -r client` etc. or manually remove the folders if you don't want to install trash.
 
-In any case however you delete your folders you should now see that everything is completely within package directories.
+In any case, however you delete your folders, you should now see that everything is completely within package directories.
 
 <img src="../images/posts/package-based-architecture-part-1/package-dir-structure.png" class="img-responsive" />
 
@@ -1016,7 +1020,7 @@ touch packages/customertracker-customer/lib/client/templates/customer-index.html
 
 OK, so all we're doing here is laying out the components we want on our main index page.  What's up with that `render` function?  Well we want to only render components that exist so we'll create a helper to handle the rendering of our optional components.
 
-We'll throw this into our core package as it's something that could be useful outside of the customers functionality.  For instance if we enhanced our application to include orders, we might want access to the helper in the orders packages, and these packages might not reference `customertracker:customer`.
+We'll throw this into our `core` package as it's something that could be useful outside of the customers functionality.  For instance if we enhanced our application to include orders, we might want access to the helper in the orders packages.  These packages might not reference `customertracker:customer` but would certainly reference `core`.
 
 #####Terminal
 {% highlight Bash %}
@@ -1032,12 +1036,13 @@ Template.registerHelper('render', function () {
 
 Pretty simple we're just checking if a template exists, if it does we return it, otherwise we return `null`.  This will prevent attempts to render non existent templates.
 
-So let's update our package files to take into account our new items.
+So let's update our `package.js` files to take into account our new items.
 
 #####/packages/customertracker-customer/package.js
 {% highlight JavaScript %}
 ...
 ...
+
   api.use(packages);
   
   api.addFiles([
@@ -1064,6 +1069,7 @@ So let's update our package files to take into account our new items.
 {% highlight JavaScript %}
 ...
 ...
+
   api.use(packages);
   
   api.imply(packages);
@@ -1085,7 +1091,7 @@ So let's update our package files to take into account our new items.
 });
 {% endhighlight %}
 
-Now we need to create our add button template.
+Now we need to create our add button template and remove the button from the `listCustomers` template.
 
 #####Terminal
 {% highlight Bash %}
@@ -1202,7 +1208,7 @@ Template.listCustomers.helpers({
 ...
 {% endhighlight %}
 
-Next we need to update our routes.
+Next we need to update our routes since we no longer want our `listCustomers` template to act as our root route.
 
 #####/packages/customertracker-customer/lib/routes.js
 {% highlight JavaScript %}
@@ -1217,7 +1223,7 @@ Router.route('/:page?/:sortField?/:sortDirection?', {
 
 We want our root route to hit our new `customerIndex` template instead of directly hitting the  `listCustomers` template.
 
-With the router changes we need to update code that refers to the old `listCustomers` route to refer to the new `customerIndex` route instead.
+With the router changes we need to update code that refers to the old `listCustomers` route to instead refer to the `customerIndex` route.
 
 #####/packages/customertracker-list/lib/client/templates/list-customers.js
 {% highlight JavaScript %}
@@ -1249,7 +1255,7 @@ var navigateToCustomersRoute = function(sortField) {
 ...
 {% endhighlight %}
 
-So here we've changed instances of `Router.routes.listCustomers.path` to the new route of `Router.routes.customerIndex.path`.
+So here we've changed instances of `Router.routes.listCustomers.path` to the new route of `Router.routes.customerIndex.path`.  We've also replaced instances of `Router.go('listCustomers')` with `Router.go('customerIndex)`.
 
 We need to make a similar change in `add-customer.js`.
 
@@ -1282,7 +1288,7 @@ Template.addCustomer.events({
 });
 {% endhighlight %}
 
-So we've replaced instances of `Router.go('listCustomers')` with `Router.go('customerIndex)`.
+Again we've replaced instances of `Router.go('listCustomers')` with `Router.go('customerIndex)`.
 
 And with that we can now use any combination of the 3 packages.
 
@@ -1290,10 +1296,18 @@ For instance removing the `list` package results in the following.
 
 <img src="../images/posts/package-based-architecture-part-1/new-add.png" class="img-responsive" />
 
-##Summary
-Although very much a contrived example, hopefully this post gives some insight into what's involved in a package based architecture.
+Pretty cool, our application still works, we can add customers and view the latest customer that was added, but our list functionality is no longer present.
 
-Personally, I am very impressed with this approach to building Meteor applications.  I think using packages has many advantages, primarily around code organization and keeping your code modular and decoupled.  The ability to add and remove features via `meteor add/remove` is pretty sweet.  I can see many situations where this would be useful, such as demonstrating beta features to customers.
+##Summary
+Although very much a contrived example, hopefully this post gives some insight into what's involved in a package based architecture.  
+
+Is it pretty silly to use a package based architecture on a small example application?  I'd say yes without a doubt!  However, I am very impressed with this approach to building Meteor applications and I think it merits consideration when creating a non-trivial Meteor application.
+
+Using packages has many advantages, primarily around code organization and keeping your code modular and decoupled.  The ability to add and remove features via `meteor add/remove` is pretty sweet as well.  I can see many situations where this would be useful, such as demonstrating beta features to customers.
+
+The fact that a project can be converted in an iterative manner means an initially small application that looks like it will grow can be upgraded to use packages without completely stalling new feature development, this is great!  Getting buy in on a refactor that will completely halt new feature development is much more difficult than diverting partial effort towards a refactor.
+
+There are certainly some drawbacks to a package based architecture, it is a little more complicated to develop applications in this manner.  You could also run into complexities with package dependencies, for instance circular package dependencies where package A needs package B which needs package A.  In someways this is probably a good thing however, as a circular dependency likely points to a fault with your application structure / design and indicates a refactor is in order.
 
 ###Next steps
 A great next step if you're interested in further exploring package based architecture is the <a href="https://github.com/TelescopeJS/Telescope" target="_blank">Telescope source</a> on GitHub.  There's nothing like looking through a real world application.
@@ -1306,3 +1320,5 @@ A couple of great resources that helped with putting together this post include:
 * <a href="http://www.telescopeapp.org/blog/telescope-package-based-architecture/" target="_blank">Sacha Greif's screen cast on package based architecture</a>.
 * <a href="https://meteor.hackpad.com/Building-Large-Apps-Tips-d8PQ848nLyE" target="_blank">The hackpad referenced in Sacha's screencast</a>.
 * <a href="http://themeteorchef.com/recipes/writing-a-package/" target="_blank">The writing a package tutorial put together by the Meteor Chef</a>.
+
+Thanks for reading and I hope you enjoyed this post!
