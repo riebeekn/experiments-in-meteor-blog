@@ -60,6 +60,11 @@ blockquote {
     word-wrap: break-word;
   }
 
+  h6 {
+    @include font-size(18);
+    color: $gothic;
+  }
+
   li {
     @include font-size(18);
     color: $tuna;
