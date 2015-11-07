@@ -7,11 +7,7 @@ In this post we'll be continuing right from where we left off with <a href="/met
 
 So onto <a href="https://www.meteor.com/tutorials/blaze/adding-user-accounts" target="_blank">step 9...</a>
 
-#STOPPED
-
 ##Implementing Step 9 of the tutorial
-
-OK, we are now onto the last step of the tutorial.  The official tutorial doesn't remove `autopublish` or `insecure` until step 10 and 11, but since we've removed those right off the bat we are ahead of the game and only have step 9 left.  It is pretty involved however, let's have look at the requirements.
 
 <div class="panel panel-info">
   <div class="panel-heading">
@@ -28,13 +24,13 @@ OK, we are now onto the last step of the tutorial.  The official tutorial doesn'
 
 ###Writing our tests and implementing step 9
 
-OK, we're going to need to update `page-contents` to take into account the login / logout links.
+OK, since we are adding the concept of users to our application we'll need to update `page-contents` to take into account a login / logout link.
 
 As well, `new-task` will need to be updated to include the new rule about only logged in users  being able to create tasks.  Also we'll want to enhance the test to check that tasks are correctly associated with users.
 
 Finally we need to update `task-item` as tasks now need to indicate who created them.
 
-A bit of set-up is going to be required before we can get to the actual test as we need to figure out how to handle accounts in our tests.  First off let's add the necessary authentication packages.
+A bit of set-up is going to be required before we can get to the actual testing as we need to figure out how to handle accounts within our tests.  First off let's add the necessary authentication packages.
 
 #####Terminal
 {% highlight Bash %}
@@ -51,6 +47,17 @@ touch packages/testing/user-fixtures.js
 #####/packages/testing/user-fixtures.js
 {% highlight JavaScript %}
 Meteor.startup(function() {
+  
+  // Disable rate limiting for our test users
+  //
+  // As per docs.meteor.com/#/full/ddpratelimiter, "the default limits 
+  // login attempts, new user creation, and password resets to 
+  // 5 attempts every 10 seconds per connection"
+  //
+  // With rate limiting enabled, our tests will fail as we
+  // are logging in / logging more than 5x per 10 seconds
+  Accounts.removeDefaultRateLimit();
+
   var user = Meteor.users.findOne({username: 'Bob'});
   if (!user) {
     Accounts.createUser({
@@ -61,14 +68,16 @@ Meteor.startup(function() {
 });
 {% endhighlight %}
 
-Nothing complicated, we're just creating a user 'Bob' if he doesn't already exist.
+Here we're doing two things, `Accounts.removeDefaultRateLimit();` is necessary so when running our tests we don't start hitting the default rate limit set up by Meteor on accounts.
 
-We're going to need to update our package file to include the new fixture.
+Then we are setting up the user we'll be using for our tests, we search for a 'Bob' and create him if he doesn't already exist.
+
+We need to update our package file to include the new fixture.
 
 #####/packages/testing/package.js
 {% highlight JavaScript %}
-...
-...
+  ...
+  ...
   api.addFiles([
     'task-fixtures.js',
     'user-fixtures.js'
@@ -80,9 +89,9 @@ We've added `user-fixtures.js` to our list of files and now as per <a href="http
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/user.png" class="img-responsive" />
 
-Next we're going to need a way to login and logout in our tests.  We could interact with the UI to do so, but we're going to circumvent that by just calling the appropriate Meteor methods.
+Next we're going to need a way to login and logout from within our tests.  We could interact with the UI to do so, but we're going to circumvent that by just calling the appropriate Meteor methods.
 
-To do so we'll create a new file in our testing package.
+So we'll create a new file for this purpose in our testing package.
 
 #####Terminal
 {% highlight Bash %}
@@ -111,9 +120,9 @@ TestUser.logout = function() {
 }
 {% endhighlight %}
 
-So all we're doing here is setting up some methods to login and logout.
+Perfect we now have method for logging in and out which we can call from within our test code.
 
-We'll need to update `package.js`.
+Again we need to update `package.js`.
 
 #####/packages/testing/package.js
 {% highlight JavaScript %}
@@ -122,7 +131,9 @@ We'll need to update `package.js`.
     'task-fixtures.js',
     'user-fixtures.js'
   ], 'server');
-  api.addFiles(['test-user.js'], ['client']);
+  api.addFiles([
+    'test-user.js'
+  ], 'client');
 
   api.export([
     'TestUser'
@@ -130,20 +141,27 @@ We'll need to update `package.js`.
 });
 {% endhighlight %}
 
-We've add the new file and exported our `TestUser` class.
+We've added the new file and exported the `TestUser` class.
 
-The last thing I want to do is alter our task fixture to automatically assign a user to a task on creation when a user is logged in.
+Finally let's alter our task fixture to automatically assign a user to a task on creation when a user is logged in.
 
 #####/packages/testing/task-fixtures.js
 {% highlight JavaScript %}
 ...
-var _getDefaultTask = function() {
+var getDefaultTask = function() {
   var defaultUsername = '';
   var defaultOwnerId = '';
 
+  // if a user is logged in, assign that user
+  // as the owner of the task, otherwise we'll
+  // default to 'Bob'
   if (Meteor.user()) {
     defaultUsername = Meteor.user().username;
     defaultOwnerId = Meteor.user()._id;
+  } else {
+    var user = Meteor.users.findOne({username: 'Bob'});
+    defaultUsername = user.username;
+    defaultOwnerId = user._id;
   }
 
   return {
@@ -157,9 +175,9 @@ var _getDefaultTask = function() {
 ...
 {% endhighlight %}
 
-So we just check if a user is logged in, if so that's who the task gets associated with.
+We're checking if a user is logged in, if so that's who the task gets associated with, otherwise we are going to default the owner to 'Bob'.
 
-Phew, now we can finally get onto the actual tests
+Sweet, now we can get onto the actual tests
 
 ####page-contents-spec.js
 
@@ -204,7 +222,7 @@ describe ("the todo page : page contents", function() {
         expect($('.new-task input').attr('placeholder'))
           .toEqual('Type to add new tasks');
         done();
-      }, 200);
+      }, 300);
     });
 
     it ("should include a logged in user link", function(done) {
@@ -240,19 +258,21 @@ describe ("the todo page : page contents", function() {
 });
 {% endhighlight %}
 
-OK, a decent amount of changes.  First off we've wrapped our existing tests in a new `for all users` describe block.  Notice that we've also removed the test that checks for the new task field as the field should only show up for logged in users.
+OK, a decent amount of changes.  First off we've wrapped our existing tests in a new `for all users` describe block.  Notice that we've also removed the test that checks for the new task field as the field should only show up for logged in users.  The tests within `for all users` test for items that... you guessed it should appear for all users regardless of whether they are logged in or not.
 
-Next we have our `for logged in users` tests.  We have a `before` block which logs in our test user, notice the different syntax that needs to be used when interacting with the API of a debug package, we need to prepend the call with 'Package.<package name>', instead of just calling `TestUser.login`.
+Next is the `for logged in users` describe block for tests specific to logged in users.  
 
-Our actual "logged in" tests just check that a logged in link exists and that the new task input is available.
+First off we have a `before` block which logs in our test user, notice the different syntax that needs to be used when interacting with the API of a debug package, we need to prepend the call with 'Package.<package name>', instead of just calling `TestUser.login` so the call becomes `Package.testing.TestUser.login();`.
+
+Our "logged in" tests check that a logged in link exists consisting of the user's name and that the new task input is available.
 
 Conversely the `for logged out users` tests contain a call to `logout` in the `before` block and then check for a login link and that the new task field does not show up.
 
-We have 3 tests failing.  
+With these changes we have 3 tests failing.  
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-1.png" class="img-responsive" />
 
-The test that checks for the new task field is going to pass as that field currently appears regardless of whether the user is logged in or not.
+The test that checks for the presence of the new task field is going to pass as that field currently always appears as we have yet to hook up the logic to hide it for logged out users.
 
 ######Implementation
 
@@ -272,7 +292,7 @@ Accounts.ui.config({
 
 Now we'll update the HTML.
 
-#####/client/templates/todos.html
+#####/client/templates/simple-todos.html
 {% highlight HTML %}
 ...
 <header>
@@ -300,7 +320,7 @@ And with that we have our `page-contents` tests passing, but we seem to have som
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2.png" class="img-responsive" />
 
-Makes sense, we now are going to need to login in order to have access to our new task field, so let's update `new-task`.  While we are at it, we'll update `new-task` to check that tasks are associated with the correct user on creation and that the task text is now prepended with the username.
+This makes sense, we now are going to need to login in order to have access to the new task field, so let's update `new-task`.  While we are at it, we'll update `new-task` to check that tasks are associated with the correct user on creation and that the task text is now prepended with the username.
 
 #####/tests/jasmine/client/integration/todos/new-task-spec.js
 {% highlight JavaScript %}
@@ -341,9 +361,25 @@ describe ("the todo page : new task field", function() {
   ...
 {% endhighlight %}
 
-So we've added `beforeAll` and `afterAll` blocks to hand the login and logout, and we've updated the expected task text that will be displayed in the UI.  Also in our DB checks we've added a check to ensure the username and owner values are correct.
+We've added `beforeAll` and `afterAll` blocks to handle the login and logout, these blocks are similar to `beforeEach` and `afterEach` except that instead of running before and after every test, they run once before all the tests are executed and then once after all the tests are complete.  This is a handy way to login prior to all our tests and then logout after.
 
-To get this working we'll need to update our `addTask` method.
+We've also updated the expected task text that will be displayed in the UI, i.e. `expect(tasks[0]).toEqual('Bob - My new task');`.  Tasks should now display with the user who created them.  
+
+Finally we've updated our DB checks to ensure the username and owner values are correct.
+
+To get this working we'll need to update the code that displays the task text.
+
+#####/client/templates/simple-todos.html
+{% highlight HTML %}
+...
+<template name="task">
+  ...
+      <span class="text"><strong>{{username}}</strong> - {{text}}</span>
+  </li>
+</template>
+{% endhighlight %}
+
+And we'll need to add the user fields to the `addTask` method.
 
 #####/lib/collections.js
 {% highlight JavaScript %}
@@ -362,165 +398,97 @@ Meteor.methods({
   ...
 {% endhighlight %}
 
-We're setting the owner and username on inserted tasks.
+We're now setting the owner and username on inserted tasks.
+
+And now our tests should be passing!
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2a.png" class="img-responsive" />
 
 Now all our tests are passing.
 
-<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-pass-1.png" class="img-responsive" />
+Drat!  Looks like we have some work to do, we've gone backwards.  Let's look at the first failure.
 
-####task-item-spec.js
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2b.png" class="img-responsive" />
 
-So now the only other thing to do is update the way each task item should look.
+The issue is we're still using the old format of the task text in our test, we need to include the user name as part of the text, so we'll be changing the following test in `task-item`:
 
-######Tests
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("should include the task text", function(done) {
+  Meteor.setTimeout(function() {
+    var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+    expect(tasks.length).toEqual(1);
+    expect(tasks[0]).toEqual('The task');
+    done();
+  }, 200);
+});
+{% endhighlight %}
+</div>
+
+We'll rename the test and alter the second `expect` to include the username.
 
 #####/tests/jasmine/client/integration/todos/task-item-spec.js
 {% highlight JavaScript %}
-describe ("the todo page : an individual task item", function() {
+...
+afterEach(function() {
+  Meteor.call('fixtures.destroyTasks');
+});
 
-  beforeAll(function() {
-    Package.testing.TestUser.login();
-  });
-  afterAll(function() {
-    Package.testing.TestUser.logout();
-  });
+it ("should include the name of the user who created "
+    + "the task along with the task text", function(done) {
+  Meteor.setTimeout(function() {
+    var tasks = TodosSpecHelper.retrieveTasksFromUI();
 
-  beforeEach(function() {
-    Meteor.call('fixtures.createTask', {
-      text: 'The task'
-    });
-  });
-  afterEach(function() {
-    Meteor.call('fixtures.destroyTasks');
-  });
+    expect(tasks.length).toEqual(1);
+    expect(tasks[0]).toEqual('Bob - The task');
+    done();
+  }, 200);
+});
 
-  it ("should include the name of the user who created "
-      + "the task along with the task text", function(done) {
-    Meteor.setTimeout(function() {
-      var tasks = TodosSpecHelper.retrieveTasksFromUI();
-
-      expect(tasks.length).toEqual(1);
-      expect(tasks[0]).toEqual('Bob - The task');
-      done();
-    }, 200);
-  });
-  ...
+it ("should include a checkbox to mark the task as complete", function(done) {
   ...
 {% endhighlight %}
 
-We've updated the test that checks the task text to include the username and also added blocks to login the user.  We need to login otherwise no username will be associated with the task.
+OK, that gets us down to two failing test, both in `task-list`:
 
-As expected we now have a failing test.
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2c.png" class="img-responsive" />
 
-<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-3.png" class="img-responsive" />
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2d.png" class="img-responsive" />
 
-######Implementation
-
-To get the test passing we need to update our HTML.
-
-#####/client/templates/todos.html
-{% highlight HTML %}
-...
-...
-<template name="task">
-  <li class="{{#if completed}}checked{{/if}}">
-    <button class="delete">&times;</button>
-    <input type="checkbox" checked="{{completed}}" class="toggle-checked" />
-    <span class="text"><strong>{% raw %}{{username}}{% endraw %}</strong> - {% raw %}{{text}}{% endraw %}</span>
-  </li>
-</template>
-{% endhighlight %}
-
-OK, just a quick update to the `span` tag and we are all good.
-
-Or not...
-
-#CHECK THIS IMAGE MIGHT BE WRONG... might want to check all of them in step 9
-
-<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-4.png" class="img-responsive" />
-
-We have some issues with our task list, once again we're going to need to login and then adjust the task text values in the UI that we are checking for.
+So same issue that we had in `task-item`, a similar change is required to get things back passing.
 
 #####/tests/jasmine/client/integration/todos/task-list-spec.js
 {% highlight JavaScript %}
-describe ("the todo page : task list", function() {
-
-  beforeAll(function(done) {
-    Meteor.setTimeout(function() {
-      Package.testing.TestUser.login();
-      done();
-    }, 300);
-  });
-  afterAll(function() {
-    Package.testing.TestUser.logout();
-  });
-
-  beforeEach(function() {
-    Meteor.call('fixtures.createTask', {
-      text: 'This is task 1', createdAt: '2015-01-01', completed: true});
-    Meteor.call('fixtures.createTask', {text: 'This is task 2', createdAt: '2015-02-01'});
-    Meteor.call('fixtures.createTask', {text: 'This is task 3', createdAt: '2015-03-01'});  
-  });
-  afterEach(function() {
-    Meteor.call('fixtures.destroyTasks');
-  });
-
-  describe ("show all tasks", function() {
-
-    it ("should contain the current list of tasks sorted by creation date " +
+...
+it ("should contain the current list of tasks sorted by creation date " +
         "descending", function(done) {
-      Meteor.setTimeout(function() {
-        var tasks = TodosSpecHelper.retrieveTasksFromUI();
+  ...
+  expect(tasks[0]).toEqual('Bob - This is task 3');
+  expect(tasks[1]).toEqual('Bob - This is task 2');
+  expect(tasks[2]).toEqual('Bob - This is task 1');
+  done();
+  ...
 
-        expect(tasks.length).toEqual(3);
-        expect(tasks[0]).toEqual('Bob - This is task 3');
-        expect(tasks[1]).toEqual('Bob - This is task 2');
-        expect(tasks[2]).toEqual('Bob - This is task 1');
-        done();
-      }, 200);
-    });
-
-  });
-
-  describe ("show incomplete tasks only", function() {
-
-    beforeEach(function() {
-      // click the 'hide completed' checkbox to hide completed task
-      $('label.hide-completed').find('input:checkbox').click();
-    });
-    afterEach(function() {
-      // re-enable the showing of completed tasks so subsequent tests are not affected
-      $('label.hide-completed').find('input:checkbox').click();
-    });
-
-    it ("should contain the current list of incompleted tasks sorted " +
+it ("should contain the current list of incompleted tasks sorted " +
         "by creation date descending", function(done) {
-      Meteor.setTimeout(function() {
-          var tasks = TodosSpecHelper.retrieveTasksFromUI();
-
-          expect(tasks.length).toEqual(2);
-          expect(tasks[0]).toEqual('Bob - This is task 3');
-          expect(tasks[1]).toEqual('Bob - This is task 2');
-          done();
-        }, 200);
-    });
-
-  });
-
-});
+  ...
+  expect(tasks.length).toEqual(2);
+  expect(tasks[0]).toEqual('Bob - This is task 3');
+  expect(tasks[1]).toEqual('Bob - This is task 2');
+  done();
+  ...
 {% endhighlight %}
 
-The only changes here are that we have added `beforeAll` and `afterAll` blocks for logging in the user.  Note we needed to add a timeout to the `beforeAll` block as otherwise I found the `beforeEach` blocking was running before the user was logged in, meaning we weren't getting the username associated to a task.
+We've just updated all instances of the task text to be prepended with `Bob`, and with that we are finally back to a passing state.
 
-The other change is to the task text that we are looking for in our expect statements, they've been pre-pended with 'Bob'.
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-pass-1.png" class="img-responsive" />
 
-And with that we have passing tests.
-
-<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-pass-2.png" class="img-responsive" />
+Onto <a href="https://www.meteor.com/tutorials/blaze/security-with-methods" target="_blank">step 10</a>.
 
 ##Implementing Step 10 of the tutorial
 
-Step 10 of the tutorial is where the insecure package is removed... but we've done that from right off the bat so we are ahead of the game, there is one minor requirement we can test for however.
+Step 10 of the tutorial is where the `insecure` package is removed and everything is moved into Meteor methods.  We removed `insecure` off the drop so we are ahead of the game in this respect.  There is one minor requirement we can test for however.
 
 <div class="panel panel-info">
   <div class="panel-heading">
@@ -535,61 +503,13 @@ Step 10 of the tutorial is where the insecure package is removed... but we've do
 
 ###Writing our tests and implementing step 10
 
-This test is going to be a little different than the others we've written so far as we're going to need to bypass the UI.  This is because the new task fields aren't available in the UI unless a user is logged in.
+This test is going to be a little different than the others we've written so far as we're going to need to bypass the UI.  This is because the new task field isn't available in the UI unless a user is logged in and this is exactly what we need to test (i.e. that a non-logged in user cannot add a task).  So what can we do?
 
-So we're going to call our server method directly from within our test.
+Well one thing we could do is to call our server method directly from within our test.  Something like the following could be done from the `new-task` spec:
 
-####new-task-spec.js
-
-######Tests
-
-#####/tests/jasmine/client/integration/new-task-spec.js
+<div class="no-select-button">
 {% highlight JavaScript %}
 describe ("the todo page : new task field", function() {
-  
-  describe ("for logged in users", function() {
-    
-    beforeAll(function() {
-      Package.testing.TestUser.login();
-    });
-    afterAll(function() {
-      Package.testing.TestUser.logout();
-    });
-
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-  
-    it ("should create a new task on form submit with expected values", function(done) {
-      // submit a new task
-      Meteor.setTimeout(function() {
-        addTaskViaUI('My new task');
-        
-        // check the updated task list
-        var tasks = TodosSpecHelper.retrieveTasksFromUI();
-        expect(tasks.length).toEqual(1);
-        expect(tasks[0]).toEqual('Bob - My new task');
-
-        // also check the DB
-        var task = Tasks.findOne({text: 'My new task'});
-        expect(task).not.toBe(undefined);
-        expect(task.text).toEqual('My new task');
-        expect(task.completed).toBe(false);
-        expect(task.username).toEqual('Bob');
-        expect(task.owner).toEqual(Meteor.userId());
-        done();
-      }, 300);
-    });
-
-    it ("should clear out the new task field on form submit", function(done) {
-      Meteor.setTimeout(function() {  
-        addTaskViaUI('Another new task');
-        expect($('.new-task input').val()).toEqual('');
-        done();
-      }, 200);
-    });
-
-  });
 
   describe ("for non-logged in users", function() {
 
@@ -605,18 +525,44 @@ describe ("the todo page : new task field", function() {
     });
 
   });
-  
-});
 
-var addTaskViaUI = function(taskName) {
-  $('.new-task input').val(taskName);
-  $("form").submit();
-}
+  describe ("for logged in users", function() {
+    ... existing beforeAll / afterAll blocks and tests
+    ...
+{% endhighlight %}
+</div>
+
+There are a few problems with this approach; for one since we're just calling a Meteor method directly it doesn't seem like much of a client test; and two although it's a valid, passing test we get a nasty error showing up in the browser console due to the `not-authorized` exception that is thrown.  Although we are checking for this exception in our test it still is going to propagate to the browser console.  This is pretty ugly as it means any actual issues with our tests down the line that might be throwing stuff into the browser console is going to be easy to overlook as we have cruft in there.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/cruft.png" class="img-responsive" />
+
+So we are much better off testing this kind of thing with a server test, so let's get that hooked up!
+
+######Tests
+
+We'll need to create a new directory for our server tests along with a file to hold the tests.
+
+#####Terminal
+{% highlight Bash %}
+mkdir -p tests/jasmine/server/integration/todos
+touch tests/jasmine/server/integration/todos/new-task-spec.js
 {% endhighlight %}
 
-OK, so we've added `logged in` and `logged out` describe blocks.  Our existing testing are going inside of the `logged in` block, the new test lives in the new block.
+And now for the test.
 
-The new test is just explicitly calling our Meteor method and we check that we get an exception, and we're also checking the `error` property of the exception.
+#####/tests/jasmine/server/integration/todos/new-task-spec.js
+{% highlight JavaScript %}
+describe ("tasks", function() {
+
+  it ("should throw an exception when adding a task if the user is not logged in", function() {
+    Meteor.call('addTask', 'some task', function(err) {
+      expect(err).not.toBe(undefined);
+      expect(err.error).toEqual('not-authorized');
+    });
+  });
+  
+});
+{% endhighlight %}
 
 We now have a failing test.
 
@@ -644,13 +590,11 @@ And with that we are all good.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-10-passing-1.png" class="img-responsive" />
 
-One thing that is a little annoying is that the error gets thrown into the browser console and I haven't been able to figure out a way of preventing this.  This is a little annoying as it can be more difficult to see when things are actually going wrong that we aren't expecting to go wrong as now with this test we are always going to have some noise in the browser console.
-
-<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/console-noise.png" class="img-responsive" />
+And with that we are ready for our <a href="https://www.meteor.com/tutorials/blaze/publish-and-subscribe" target="_blank">final step</a>.
 
 ##Implementing Step 11 of the tutorial
 
-Step 11 primarily deals with removing autopublish so we're already there, but there are also some enhancements.
+Step 11 of the tutorial deals with removing autopublish so we're already set as we did that off the bat, but there are also some enhancements that are made to the application.
 
 <div class="panel panel-info">
   <div class="panel-heading">
@@ -673,10 +617,10 @@ Step 11 primarily deals with removing autopublish so we're already there, but th
 
 ###Writing our tests and implementing step 11
 
-OK, so we've got a whole bunch of work in front of us to get this all implemented, let's get started!
+OK, so we've got a good chunk of work in front of us to get this all implemented, let's get started!
 
 ####new-task-spec.js
-Let's get some of our simpler changes out of the way first.  With `new-task` all we need to do is check that by default new tasks are public.
+We'll start with some of the simpler changes and get those out of the way first.  One change we'll want to make is to `new-task` to check that by default new tasks are public.
 
 ######Tests
 
@@ -741,19 +685,26 @@ And we're back to passing.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-1.png" class="img-responsive" />
 
-While we are at it, let's update our default task in our task fixture.
+While we are at it, let's update our `getDefaultTask` method in the task fixture.
 
 #####/packages/testing/task-fixture.js
 {% highlight JavaScript %}
 ...
-var _getDefaultTask = function() {
+var getDefaultTask = function() {
   var defaultUsername = '';
   var defaultOwnerId = '';
 
+  // if a user is logged in, assign that user
+  // as the owner of the task, otherwise we'll
+  // default to 'Bob'
   if (Meteor.user()) {
     defaultUsername = Meteor.user().username;
     defaultOwnerId = Meteor.user()._id;
-  } 
+  } else {
+    var user = Meteor.users.findOne({username: 'Bob'});
+    defaultUsername = user.username;
+    defaultOwnerId = user._id;
+  }
 
   return {
     text: 'Task text',
@@ -767,14 +718,14 @@ var _getDefaultTask = function() {
 ...
 {% endhighlight %}
 
-Again a very small change, just including the field in the default.
+Again a very small change, just including `private: false` as part of the default.
 
 ####task-list-spec.js
-Next we're going to deal with the display aspects of private tasks, namely that they should not appear for user's who don't own the task or for user's who are not logged in.  We'll also ensure that tasks a user owns show up for them.
+Next we're going to deal with the display aspects of private tasks, namely that they should not appear for user's who don't own the task or for user's who are not logged in.  We'll also ensure that private tasks a user owns show up.
 
 ######Tests
 
-First off we are going to need another user in order to test our scenarios, so let's set that up first.
+First off we are going to need another user in order to test our scenarios, so let's set that up.
 
 #####/packages/testing/user-fixtures.js
 {% highlight JavaScript %}
@@ -817,11 +768,11 @@ Next let's update our `login` and `logout` methods.
 TestUser = {}
 
 TestUser.login = function() {
-  _login('Bob');
+  performLogin('Bob');
 }
 
 TestUser.login.Sally = function() {
-  _login('Sally');
+  performLogin('Sally');
 }
 
 TestUser.logout = function() {
@@ -830,7 +781,7 @@ TestUser.logout = function() {
   }
 }
 
-var _login = function(user) {
+var performLogin = function(user) {
   Meteor.loginWithPassword(user, 'foobar', function(err) {
     if (err) {
       console.log('Login error: ' + err);
@@ -839,9 +790,131 @@ var _login = function(user) {
 }
 {% endhighlight %}
 
-Here, we've created a new method for logging in with Sally.  Our existing method logs in with Bob as usual, but we can now log in with Sally with our new method.
+Here, we've extracted our login logic out to an internal function `performLogin`; and we've created a new method for logging in with Sally.  Our existing method logs in with Bob as usual.  If you needed a whole bunch of different users it would likely make sense to have a single `TestUser.login` method that takes in a username, but since we only have 2 users, I think have a default login method along with one specifically for Sally works pretty good... and it also means we don't need to change any of our existing tests.
 
-As far as the spec goes, there are a fair number of changes to this spec, so we'll list the full spec below and then go thru the changes section by section.
+As far as this spec goes there are a fair number of changes, so let's build it up step by step and then we'll list the full spec after we've completed the changes.
+
+So the first thing we'll want to do is create a new `describe ("private tasks"` block for tests specific to private tasks and wrap our existing tests inside a `describe ("public tasks"` block.
+
+#####/tests/jasmine/client/integration/todos/task-list-spec.js
+{% highlight JavaScript %}
+describe ("the todo page : task list", function() {
+
+  describe ("private tasks", function() {
+    // our private tests will go here
+  });
+
+  describe ("public tasks", function() {
+
+    beforeEach(function() {
+      Meteor.call('fixtures.createTask', {
+        ...
+        ...
+{% endhighlight %}
+
+OK, so we've just created an empty block for the private tests and wrapped the existing tests in a `public` block.
+
+Next let's flesh out the skeleton for the tests we want in our private block.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+  describe ("private tasks", function() {
+    
+    xit ("should not show up for non-signed in users", function(done) {
+    });
+
+    xit ("should not show up for user's that do not own the task", function(done) {
+    });
+
+    xit ("should show up for the user that owns the task", function(done) {
+    });
+
+  });
+{% endhighlight %}
+</div>
+
+OK, so we've listed out the scenarios we want to test for, notice we're using `xit` instead of `it`, this tells Jasmine these are test we don't want it to run.  It's a useful feature when you want to jot down some scenarios but not code the full tests.
+
+Now that we know our test scenarios, it's easy for us to see what we need in terms of data.  One public and one private task should be sufficient.  So let's fill in our test data and the contents of the tests.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+beforeAll(function() {
+  Meteor.call('fixtures.createTask', {
+    text: 'This is a private task', createdAt: '2015-01-01', private: true });
+  Meteor.call('fixtures.createTask', {
+    text: 'This is a public task', createdAt: '2015-02-01'}); 
+});
+afterAll(function() {
+  Meteor.call('fixtures.destroyTasks');
+});
+{% endhighlight %}
+</div>
+
+Nothing complicated in our `before` or `after` blocks, we're just creating one private and one public task.
+  
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("should not show up for non-signed in users", function(done) {
+  Meteor.setTimeout(function() {
+    Package.testing.TestUser.logout();
+  }, 200);
+
+  Meteor.setTimeout(function() {
+    var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+    expect(tasks.length).toEqual(1);
+    expect(tasks[0]).toEqual('Bob - This is a public task');
+    done();
+  }, 400);
+});
+{% endhighlight %}
+</div>
+
+With this test we first make sure we are signed out, and then in the `expect` section of the test we ensure only the public task is displayed.  Note we need to wrap the `logout()` call in it's own timeout.  Without this the expect sections for these tests seemed to execute before the user is logged out or logged in (as per the next 2 tests), causing the tests to fail.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("should not show up for user's that do not own the task", function(done) {
+  Meteor.setTimeout(function() {
+    Package.testing.TestUser.login.Sally();
+  }, 200);
+
+  Meteor.setTimeout(function() {
+    var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+    expect(tasks.length).toEqual(1);
+    expect(tasks[0]).toEqual('Bob - This is a public task');
+    done();
+  }, 400);
+});
+{% endhighlight %}
+</div>
+
+OK, here we're making use of our new user `Sally`, we login as her and ensure she is unable to see `Bob's` private task.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("should show up for the user that owns the task", function(done) {
+  Meteor.setTimeout(function() {
+    Package.testing.TestUser.login();
+  }, 200);
+
+  Meteor.setTimeout(function() {
+    var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+    expect(tasks.length).toEqual(2);
+    expect(tasks[0]).toEqual('Bob - This is a public task');
+    expect(tasks[1]).toEqual('Bob - This is a private task');
+    done();
+  }, 400);
+});
+{% endhighlight %}
+</div>
+
+Finally, we login as `Bob` and make sure both tasks are visible.
+
+The full listing for `task-list` is below:
 
 #####/tests/jasmine/client/integration/todos/task-list-spec.js
 {% highlight JavaScript %}
@@ -849,27 +922,16 @@ describe ("the todo page : task list", function() {
 
   describe ("private tasks", function() {
 
-    beforeAll(function(done) {
-      Meteor.setTimeout(function() {
-        Package.testing.TestUser.login();
-        
-        // putting this here as more efficient, plus if in beforeEach afterEach
-        // then the user might not be logged in during creation due to the logging in
-        // and logging out in the tests themselves, figured this out by looking in 
-        // Robomongo
-        Meteor.call('fixtures.createTask', {
-          text: 'This is a private task', createdAt: '2015-01-01', private: true });
-        Meteor.call('fixtures.createTask', {
-          text: 'This is a public task', createdAt: '2015-02-01'}); 
-        
-        done();
-      }, 300);
+    beforeAll(function() {
+      Meteor.call('fixtures.createTask', {
+        text: 'This is a private task', createdAt: '2015-01-01', private: true });
+      Meteor.call('fixtures.createTask', {
+        text: 'This is a public task', createdAt: '2015-02-01'}); 
     });
     afterAll(function() {
-      Package.testing.TestUser.logout();
       Meteor.call('fixtures.destroyTasks');
     });
-
+    
     it ("should not show up for non-signed in users", function(done) {
       Meteor.setTimeout(function() {
         Package.testing.TestUser.logout();
@@ -916,16 +978,6 @@ describe ("the todo page : task list", function() {
   });
 
   describe ("public tasks", function() {
-
-    beforeAll(function(done) {
-      Meteor.setTimeout(function() {
-        Package.testing.TestUser.login();
-        done();
-      }, 300);
-    });
-    afterAll(function() {
-      Package.testing.TestUser.logout();
-    });
 
     beforeEach(function() {
       Meteor.call('fixtures.createTask', {
@@ -984,7 +1036,9 @@ describe ("the todo page : task list", function() {
 });
 {% endhighlight %}
 
-// break it up here and go thru each section
+And we see 2 of our 3 new tests are failing.  The third new test where we check that Bob can see all his tasks will pass as that is the current behavior of the application.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-fail-1.png" class="img-responsive" />
 
 ######Implementation
 
@@ -1000,25 +1054,224 @@ Meteor.publish("tasks", function () {
 });
 {% endhighlight %}
 
-We've updated our publication to take into account whether a task is private or not and whether the current user is the owner of the task.
+We've updated our publication to take into account whether a task is private or not and whether the current user is the owner of the task... and bam, with that simple change we are back to a passing state.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-1.png" class="img-responsive" />
 
 ####task-item-spec.js
-Next let's tackle the `task-item` spec.  We're going to want to check that the private button shows for tasks the user owns, and doesn't show for tasks the user does not own.  We'll also check that private tasks are displayed differently from public tasks... so let's get started!
+Next let's tackle the `task-item` spec.  Once again there are a decent amount of changes so we'll build things up step by step followed by the full code listing.
+
+We're going to want to check that the private button shows for tasks the user owns, and doesn't show for tasks the user does not own.  We'll also check that private tasks are displayed differently from public tasks... so let's get started!
 
 ######Tests
+
+First off let's create our new `describe` blocks with some sketched out tests and wrap our existing tests in a `describe`.
 
 #####/tests/jasmine/client/integration/todos/task-item-spec.js
 {% highlight JavaScript %}
 describe ("the todo page : an individual task item", function() {
 
+  describe ("which the current user owns", function() {
+
+    xit ("should show the public / private button", function(done) {
+    });
+
+  });
+
+  describe ("which the current user does not own", function() {
+
+    xit ("should not show the public / private button", function(done) {
+    });
+
+  });
+
+  describe ("private tasks", function() {
+
+    xit ("should display with a grey background", function(done) {
+    });
+
+  });
+
+  // wrap existing beforeEach / afterEach blocks and
+  // tests in their own describe block
+  describe ("any task", function() {
+    ...
+{% endhighlight %}
+
+OK, so in our first describe / test we are going to check that the private / public button shows up for tasks owned by the current user.
+
+Conversely, the second describe / test is going to check the opposite; that the private / public button does not show up for tasks not owned by the current user.
+
+The third describe / test block is going to be used to ensure private tasks are displayed differently than public tasks.
+
+Finally we wrap all our existing test code in a `describe ("any task"` block.
+
+Let's start filling in our tests and then we'll work on getting them passing.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("which the current user owns", function() {
+
+  beforeEach(function() {
+    Package.testing.TestUser.login();
+    Meteor.call('fixtures.createTask');
+  });
+  afterEach(function() {
+    Package.testing.TestUser.logout();
+    Meteor.call('fixtures.destroyTasks');
+  });
+
+  it ("should show the public / private button", function(done) {
+    Meteor.setTimeout(function() {
+      var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+      var privateButton = $('.toggle-private');
+      expect(privateButton.length).toEqual(1);
+      done();
+    }, 300);
+  });
+
+});
+{% endhighlight %}
+</div>
+
+In the `beforeEach` block we login, and then create a task... this will result in a task being created which is owned by the current user.  In our test we are then checking that the public / private button appears in the UI.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+  describe ("which the current user does not own", function() {
+
+    beforeEach(function() {
+      Package.testing.TestUser.login();
+      Meteor.call('fixtures.createTask', { owner: 'Joe' });
+    });
+    afterEach(function() {
+      Package.testing.TestUser.logout();
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should not show the public / private button", function(done) {
+      Meteor.setTimeout(function() {
+        var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+        var privateButton = $('.toggle-private');
+        expect(privateButton.length).toEqual(0);
+        done();
+      }, 200);
+    });
+
+  });
+{% endhighlight %}
+</div>
+
+This describe / test block is pretty much identical to the previous one, but this time we explicitly assign the `owner` of the task we are creating to someone other than the current user.  In our test we are then ensuring the public / private button does not appear.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+  describe ("private tasks", function() {
+
+    beforeEach(function() {
+      Package.testing.TestUser.login(); // note need to login so can see task
+      Meteor.call('fixtures.createTask', { private: true });
+    });
+    afterEach(function() {
+      Package.testing.TestUser.logout();
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should display with a grey background", function(done) {
+      Meteor.setTimeout(function() {
+        expect($("li").hasClass('private')).toBe(true);
+        done();
+      }, 400);
+    });
+
+  });
+{% endhighlight %}
+</div>
+
+Our final describe / test block deals with the display of private tasks.  We create a private task owned by the current user and check that it has the appropriate class in the test.
+
+The full listing is:
+
+#####/tests/jasmine/client/integration/todos/task-item-spec.js
+{% highlight JavaScript %}
+describe ("the todo page : an individual task item", function() {
+
+  describe ("which the current user owns", function() {
+
+    beforeEach(function() {
+      Package.testing.TestUser.login();
+      Meteor.call('fixtures.createTask');
+    });
+    afterEach(function() {
+      Package.testing.TestUser.logout();
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should show the public / private button", function(done) {
+      Meteor.setTimeout(function() {
+        var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+        var privateButton = $('.toggle-private');
+        expect(privateButton.length).toEqual(1);
+        done();
+      }, 200);
+    });
+
+  });
+
+  describe ("which the current user does not own", function() {
+
+    beforeEach(function() {
+      Package.testing.TestUser.login();
+      Meteor.call('fixtures.createTask', { owner: 'Joe' });
+    });
+    afterEach(function() {
+      Package.testing.TestUser.logout();
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should not show the public / private button", function(done) {
+      Meteor.setTimeout(function() {
+        var tasks = TodosSpecHelper.retrieveTasksFromUI();
+
+        var privateButton = $('.toggle-private');
+        expect(privateButton.length).toEqual(0);
+        done();
+      }, 200);
+    });
+
+  });
+
+  describe ("private tasks", function() {
+
+    beforeEach(function() {
+      Package.testing.TestUser.login(); // note need to login so can see task
+      Meteor.call('fixtures.createTask', { private: true });
+    });
+    afterEach(function() {
+      Package.testing.TestUser.logout();
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should display with a grey background", function(done) {
+      Meteor.setTimeout(function() {
+        expect($("li").hasClass('private')).toBe(true);
+        done();
+      }, 400);
+    });
+
+  });
+
   describe ("any task", function() {
 
-    beforeAll(function() {
+    beforeEach(function() {
       Meteor.call('fixtures.createTask', {
         text: 'The task'
       });
     });
-    afterAll(function() {
+    afterEach(function() {
       Meteor.call('fixtures.destroyTasks');
     });
 
@@ -1050,82 +1303,26 @@ describe ("the todo page : an individual task item", function() {
     });
 
   });
-
-  describe ("which the current user owns", function() {
-
-    beforeEach(function() {
-      Meteor.call('fixtures.createTask');
-    });
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-
-    it ("should show the public / private button", function(done) {
-      Meteor.setTimeout(function() {
-        var tasks = TodosSpecHelper.retrieveTasksFromUI();
-
-        var privateButton = $('.toggle-private');
-        expect(privateButton.length).toEqual(1);
-        done();
-      }, 200);
-    });
-
-  });
-
-  describe ("which the current user does not own", function() {
-
-    beforeEach(function() {
-      Meteor.call('fixtures.createTask', { owner: 'Joe' });
-    });
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-
-    it ("should not show the public / private button", function(done) {
-      Meteor.setTimeout(function() {
-        var tasks = TodosSpecHelper.retrieveTasksFromUI();
-
-        var privateButton = $('.toggle-private');
-        expect(privateButton.length).toEqual(0);
-        done();
-      }, 200);
-    });
-
-  });
-
-  describe ("private tasks", function() {
-
-    beforeEach(function() {
-      Meteor.call('fixtures.createTask', { private: true });
-    });
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-
-    it ("should display with a grey background", function(done) {
-      Meteor.setTimeout(function() {
-        expect($("li").hasClass('private')).toBe(true);
-        done();
-      }, 200);
-    });
-
-  });
   
 });
 {% endhighlight %}
 
-... explanation goes here
+We now have two failing tests... the second test where we check that the public / private button does not appear is going to currently pass as in our implementation we don't currently have the public / private coded up yet.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-fail-2.png" class="img-responsive" />
 
 ######Implementation
+
+Let's get these tests passing, first we'll update the HTML.
 
 #####/client/templates/simple-todos.html
 {% highlight HTML %}
 <template name="task">
-  <li class="{{#if completed}}checked{{/if}} {{#if private}}private{{/if}}">
+  <li class="{% raw %}{{#if completed}}checked{{/if}} {{#if private}}private{{/if}}{% endraw %}">
     <button class="delete">&times;</button>
-    <input type="checkbox" checked="{{completed}}" class="toggle-checked" />
+    <input type="checkbox" checked="{% raw %}{{completed}}{% endraw %}" class="toggle-checked" />
 
-    {{#if isOwner}}
+    {% raw %}{{#if isOwner}}
       <button class="toggle-private">
         {{#if private}}
           Private
@@ -1133,10 +1330,18 @@ describe ("the todo page : an individual task item", function() {
           Public
         {{/if}}
       </button>
-    {{/if}}
-    ...
-    ...
+    {{/if}}{% endraw %}
+
+    <span class="text"><strong>{% raw %}{{username}}</strong> - {{text}}{% endraw %}</span>
+  </li>
+</template>
 {% endhighlight %}
+
+We've updated the class for the `li` tag, (i.e. `<li class="{{#if completed}}checked{{/if}} {{#if private}}private{{/if}}">`) to include a `private` class in cases where the task is private, this will address our test that checks that `private` tasks are displayed differently than public tasks.
+
+The other change is to add the private / public button on the task if the current user is the owner of the task.
+
+We need to add the `isOwner` helper.
 
 #####/client/templates/simple-todos.js
 {% highlight JavaScript %}
@@ -1151,59 +1356,73 @@ Template.task.events({
   ...
 {% endhighlight %}
 
+And with that all our tests are back to passing.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-2.png" class="img-responsive" />
+
 ####update-task-spec.js
 
+With `update-task` we're going to want to ensure that the private and public buttons work as expected.  We'll add a new `describe` section for this purpose.
+
 ######Tests
+
+Let's sketch out our new `describe` blocks and tests.
 
 #####/tests/jasmine/client/integration/todos/update-task-spec.js
 {% highlight JavaScript %}
 describe ("the todo page : update task", function() {
-  
-  xdescribe ("completing a task", function() {
-    beforeEach(function() {
-      Meteor.call('fixtures.createTask');
-    });
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-      
-    it ("should set the 'completed' field to true", function(done) {
-      _toggleAndCheckTaskStatus(true, done);
-    });
-
-    it ("should show a strike-through for the completed tasks", function(done) {
-      _toggleAndCheckTaskStatus(true, done);
-    });
-  });
-
-  xdescribe ("re-activating a task", function() {
-    beforeEach(function () {
-      Meteor.call('fixtures.createTask', {completed: true});
-    });
-    afterEach(function() {
-      Meteor.call('fixtures.destroyTasks');
-    });
-      
-    it ("should set the 'completed' field to false", function(done) {
-      _toggleAndCheckTaskStatus(false, done);
-    });
-
-    it ("should remove the strike-through for the re-activated tasks", function(done) {
-      _toggleAndCheckTaskStatus(false, done);
-    });
-
-  });
 
   describe ("private and public tasks", function() {
-    
+
+    describe ("public tasks", function() {
+
+      xit ("should update the task to private when "
+          + "public button is clicked", function(done) {
+      });
+
+      xit ("should update the text of the button to 'private' "
+          + "when the public button is clicked", function(done) {
+      });
+      
+    });
+
+    describe ("private tasks", function() {
+
+      xit ("should update the task to public when "
+          + "private button is clicked", function(done) {
+      });
+
+      xit ("should update the text of the button to 'public' "
+          + "when the private button is clicked", function(done) {
+      });
+      
+    });
+
+  });
+{% endhighlight %}
+
+We've set up a `describe` block for testing the public and private task functionality and inside of that we have separate blocks for private v.s. public.  Then we have 2 tests in each block which check that the task is updated in the database and that the text of the button changes.
+
+Let's fill in our tests and test data.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("private and public tasks", function() {
+
     beforeAll(function() {
       Package.testing.TestUser.login();
     });
     afterAll(function() {
       Package.testing.TestUser.logout();
     });
-    
-    xdescribe ("public tasks", function() {
+{% endhighlight %}
+</div>
+
+First thing we'll do is set up login / logout in `beforeAll` and `afterAll` blocks for all the private / public tests.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("public tasks", function() {
       
       beforeEach(function() {
         Meteor.call('fixtures.createTask', 
@@ -1221,7 +1440,7 @@ describe ("the todo page : update task", function() {
           var taskInDb = Tasks.findOne({text: "This is a public task"});
           expect(taskInDb.private).toEqual(true);
           done();
-        }, 200);
+        }, 300);
       });
 
       it ("should update the text of the button to 'private' when the public button is clicked", function(done) {
@@ -1235,8 +1454,18 @@ describe ("the todo page : update task", function() {
       });
     
     });
+{% endhighlight %}
+</div>
 
-    xdescribe ("private tasks : owned by the current user", function() {
+With the public tasks we create a single public task as the test data.  
+
+In our tests we click the private / public button and in the first test ensure that the task is set to private in the database; in the second test we ensure the button text has changed to reflect the status of the button.
+
+We'll do essentially the same thing in our private tests.  The difference being we'll start with an initially private task which we'll set to public.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("private tasks", function() {
 
       beforeEach(function() {
         Meteor.call('fixtures.createTask', 
@@ -1254,7 +1483,7 @@ describe ("the todo page : update task", function() {
           var taskInDb = Tasks.findOne({text: "This is a private task"});
           expect(taskInDb.private).toEqual(false);
           done();
-        }, 200);
+        }, 300);
       });
 
       it ("should update the text of the button to 'public' when the private button is clicked", function(done) {
@@ -1266,74 +1495,145 @@ describe ("the todo page : update task", function() {
           done();
         }, 400);
       });
+      
+    });
+{% endhighlight %}
+</div>
 
+The full listing for `update-task` is:
+
+#####/tests/jasmine/client/integration/todos/update-task-spec.js
+{% highlight JavaScript %}
+describe ("the todo page : update task", function() {
+
+  describe ("private and public tasks", function() {
+
+    beforeAll(function() {
+      Package.testing.TestUser.login();
+    });
+    afterAll(function() {
+      Package.testing.TestUser.logout();
     });
 
-    describe ("private tasks : not owned by the current user", function() {
-      var taskId = '';
+    describe ("public tasks", function() {
+      
       beforeEach(function() {
-        Meteor.call('fixtures.createTask', { 
-          text: "This is a private task", 
-          private: true,
-          owner: 'someOwner'
-        }, function(error, result) {
-          taskId = result._id;
-        });
+        Meteor.call('fixtures.createTask', 
+          { text: "This is a public task"});
       });
       afterEach(function() {
         Meteor.call('fixtures.destroyTasks');
       });
 
-      it ("should not be able to be completed", function(done) {
+      it ("should update the task to private when public button is clicked", function(done) {
         Meteor.setTimeout(function() {
-          Meteor.call('setCompleted', taskId, true, function(err) {
-            expect(err).not.toBe(undefined);
-            expect(err.error).toEqual('not-authorized');
-            done();
-          });
+          // set the task to private
+          $('.toggle-private').click();
+
+          var taskInDb = Tasks.findOne({text: "This is a public task"});
+          expect(taskInDb.private).toEqual(true);
+          done();
         }, 300);
       });
 
-      it ("should not be able to be deleted", function(done) {
+      it ("should update the text of the button to 'private' when the public button is clicked", function(done) {
         Meteor.setTimeout(function() {
-          Meteor.call('deleteTask', taskId, function(err) {
-            expect(err).not.toBe(undefined);
-            expect(err.error).toEqual('not-authorized');
-            done();
-          });
-        }, 300);
-      });
-
-      it ("should not be able to be marked as public", function(done) {
+          $('.toggle-private').click();
+        }, 200);
         Meteor.setTimeout(function() {
-          Meteor.call('setPrivate', taskId, false, function(err) {
-            expect(err).not.toBe(undefined);
-            expect(err.error).toEqual('not-authorized');
-            done();
-          });
-        }, 300);
+          expect($('.toggle-private').text().trim()).toEqual('Private');
+          done();
+        }, 400);
       });
-
+    
     });
+
+    describe ("private tasks", function() {
+
+      beforeEach(function() {
+        Meteor.call('fixtures.createTask', 
+          { text: "This is a private task", private: true});
+      });
+      afterEach(function() {
+        Meteor.call('fixtures.destroyTasks');
+      });
+
+      it ("should update the task to public when private button is clicked", function(done) {
+        Meteor.setTimeout(function() {
+          // set the task to private
+          $('.toggle-private').click();
+
+          var taskInDb = Tasks.findOne({text: "This is a private task"});
+          expect(taskInDb.private).toEqual(false);
+          done();
+        }, 300);
+      });
+
+      it ("should update the text of the button to 'public' when the private button is clicked", function(done) {
+        Meteor.setTimeout(function() {
+          $('.toggle-private').click();
+        }, 200);
+        Meteor.setTimeout(function() {
+          expect($('.toggle-private').text().trim()).toEqual('Public');
+          done();
+        }, 400);
+      });
+      
+    });
+
+  });
   
+  describe ("completing a task", function() {
+    beforeEach(function() {
+      Meteor.call('fixtures.createTask');
+    });
+    afterEach(function() {
+      Meteor.call('fixtures.destroyTasks');
+    });
+      
+    it ("should set the 'completed' field to true", function(done) {
+      toggleAndCheckTaskStatus(true, done);
+    });
+
+    it ("should show a strike-through for the completed tasks", function(done) {
+      toggleStatusAndCheckStrikeThru(true, done);
+    });
   });
 
-  var _toggleAndCheckTaskStatus = function(completeTask, done) {
+  describe ("re-activating a task", function() {
+    beforeEach(function () {
+      Meteor.call('fixtures.createTask', {completed: true});
+    });
+    afterEach(function() {
+      Meteor.call('fixtures.destroyTasks');
+    });
+      
+    it ("should set the 'completed' field to false", function(done) {
+      toggleAndCheckTaskStatus(false, done);
+    });
+
+    it ("should remove the strike-through for the re-activated tasks", function(done) {
+      toggleStatusAndCheckStrikeThru(false, done);
+    });
+
+  });
+
+  var toggleAndCheckTaskStatus = function(completeTask, done) {
     Meteor.setTimeout(function() {
       // activate the checkbox
       $("li").find("input:checkbox").click();
       
-      // find the associated record in the DB and verify it is checked
+      // find the associated record in the DB
       var tasks = Tasks.find().fetch();
       expect(tasks[0].completed).toEqual(completeTask);
 
-      // ensure the checkbox is now checked
+      // verify the status of the UI checkbox
       expect($("li").find("input:checkbox").is(':checked')).toEqual(completeTask);
       done();
     }, 200);
   }
 
-  var _toggleStatusAndCheckStrikeThru = function(completeTask, done) {
+  var toggleStatusAndCheckStrikeThru = function(completeTask, done) {
     Meteor.setTimeout(function() {
       $("li").find("input:checkbox").click();
     }, 200);
@@ -1347,16 +1647,232 @@ describe ("the todo page : update task", function() {
 });
 {% endhighlight %}
 
+As a result of the changes to the test, there are now 4 failing tests; 2 for the public tasks and 2 for the private tasks.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-fail-3.png" class="img-responsive" />
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-fail-4.png" class="img-responsive" />
+
 ######Implementation
+
+To get the tests working we need to add an event handler for the private / public button.
+
+#####/client/templates/simple-todos.js
+{% highlight JavaScript %}
+Template.task.events({
+  ...
+  "click .toggle-private": function () {
+    Meteor.call("setPrivate", this._id, ! this.private);
+  }
+});
+{% endhighlight %}
+
+Now we need to add the `setPrivate` method.
+
+#####/lib/collections.js
+{% highlight JavaScript %}
+Meteor.methods({
+  addTask: function (text) {
+  ...
+  setPrivate: function (taskId, setToPrivate) {
+    var task = Tasks.findOne(taskId);
+
+    Tasks.update(taskId, { $set: { private: setToPrivate } });
+  }
+});
+{% endhighlight %}
+
+Now we're back to passing.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-3.png" class="img-responsive" />
+
+####tasks-spec.js
+
+The final bit of functionality we want to test for is that we're enforcing our access rules on the server.  So we'll add a few more server tests.
+
+######Tests
+
+Again, let's start with a sketch of what we want to test.
+
+#####/tests/jasmine/server/integration/todos/tasks-spec.js
+{% highlight JavaScript %}
+describe ("Tasks : addTask", function() {
+
+  it ("should throw an exception when adding a task if the user " 
+      + "is not logged in", function() {
+    Meteor.call('addTask', 'some task', function(err) {
+      expect(err).not.toBe(undefined);
+      expect(err.error).toEqual('not-authorized');
+    });
+  });
+
+  describe ("private tasks : not owned by the current user", function() {
+    xit ("should not be able to be completed", function() {
+    });
+
+    xit ("should not be able to be deleted", function() {
+    });
+
+    xit ("should not be able to be marked as public", function() {
+    });
+  });
+  
+});
+{% endhighlight %}
+
+OK so we're going to need to deal with users again, as we'll need a current user and to create a task that the current user does not own.
+
+On the client we've been using our test package to handle logins, i.e.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+beforeAll(function() {
+  Package.testing.TestUser.login();
+});
+afterAll(function() {
+  Package.testing.TestUser.logout();
+});
+{% endhighlight %}
+</div>
+
+This won't work on the server however as under the hood our test package calls `Meteor.login(...` which is only available on the client.  So how do we manage users when writing server tests?  Well we can use Jasmine spies.  I was a little confused by spies initially, until I read the docs (duh, always a good idea) and realized they are very similar to test mocks.  I've used <a href="https://github.com/Moq/moq4" target="_blank">Moq</a> a fair bit in .NET if you've previously used a mocking framework you'll have no trouble understanding Jasmine spies.
+
+The core <a href="http://stackoverflow.com/questions/12827580/mocking-vs-spying-in-mocking-frameworks" target="_blank">difference between mocks and spies</a> is that instead of replacing an entire object as with a mock, a spy on replaces the parts of an object you've assigned spies on.
+
+So what does a spy look like in Jasmine?  Have a look:
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("... some test", function() {
+  spyOn(Meteor, 'userId').and.returnValue('someUserId');
+  ...
+});
+{% endhighlight %}
+</div>
+
+What this means is that during the execution of `... some test` whenever `Meteor.userId()` is called, the return value of that call will be `someUserId`.
+
+This means we can set up appropriate scenarios for our tests pretty easily.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("private tasks : not owned by the current user", function() {
+
+  var taskId = '';
+  beforeEach(function() {
+    Meteor.call('fixtures.createTask', { 
+      text: "This is a private task", 
+      private: true,
+      owner: 'someUserId'
+    }, function(error, result) {
+      taskId = result._id;
+    });
+  });
+  afterEach(function() {
+    Meteor.call('fixtures.destroyTasks');
+  });
+{% endhighlight %}
+</div>
+
+In the `beforeEach` call we create a private task and directly assign an owner of `someUserId`.  Notice the callback... we need to store the `taskId` for usage in our tests.
+
+Next let's have a look at the first test.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+it ("should not be able to be completed", function() {
+  spyOn(Meteor, 'userId').and.returnValue('someOtherUserId');
+
+  Meteor.call('setCompleted', taskId, true, function(err) {
+    expect(err).not.toBe(undefined);
+    expect(err.error).toEqual('not-authorized');
+  });
+});
+{% endhighlight %}
+</div>
+
+This is where we make use of our `spy`, specifying that `Meteor.userId()` should return `someOtherUserId`.  Since the ownerId from our task `someUserId` doesn't match the value that will get returned from `Meteor.userId()` we have set up a scenario where we expect a `not-authorized` exception to be thrown.
+
+After setting up the spy, we call into the `setCompleted` method passing in the `taskId` and a value of `true`.
+
+We'll do a very similar thing for the other tests.
+
+<div class="no-select-button">
+{% highlight JavaScript %}
+describe ("Tasks : addTask", function() {
+
+  it ("should throw an exception when adding a task if the user " 
+      + "is not logged in", function() {
+    Meteor.call('addTask', 'some task', function(err) {
+      expect(err).not.toBe(undefined);
+      expect(err.error).toEqual('not-authorized');
+    });
+  });
+
+  describe ("private tasks : not owned by the current user", function() {
+
+    var taskId = '';
+    beforeEach(function() {
+      Meteor.call('fixtures.createTask', { 
+        text: "This is a private task", 
+        private: true,
+        owner: 'someUserId'
+      }, function(error, result) {
+        taskId = result._id;
+      });
+    });
+    afterEach(function() {
+      Meteor.call('fixtures.destroyTasks');
+    });
+
+    it ("should not be able to be completed", function() {
+      spyOn(Meteor, 'userId').and.returnValue('someOtherUserId');
+
+      Meteor.call('setCompleted', taskId, true, function(err) {
+        expect(err).not.toBe(undefined);
+        expect(err.error).toEqual('not-authorized');
+      });
+    });
+
+    it ("should not be able to be deleted", function() {
+      spyOn(Meteor, 'userId').and.returnValue('someOtherUserId');
+
+      Meteor.call('deleteTask', taskId, function(err) {
+        expect(err).not.toBe(undefined);
+        expect(err.error).toEqual('not-authorized');
+      });
+    });
+
+    it ("should not be able to be marked as public", function() {
+      spyOn(Meteor, 'userId').and.returnValue('someOtherUserId');
+
+      Meteor.call('setPrivate', taskId, false, function(err) {
+        expect(err).not.toBe(undefined);
+        expect(err.error).toEqual('not-authorized');
+      });
+    });
+  });
+  
+});
+{% endhighlight %}
+</div>
+
+And we now have three failing tests.
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-fail-5.png" class="img-responsive" />
+
+######Implementation
+
+To get our tests passing we need to add some security checks to our methods.
 
 #####/lib/collections.js
 {% highlight JavaScript %}
 ...
-  deleteTask: function (taskId) {
+deleteTask: function (taskId) {
     var task = Tasks.findOne(taskId);
 
+    // If the task is private, make sure only the owner can delete it
     if (task.private && task.owner !== Meteor.userId()) {
-      // If the task is private, make sure only the owner can delete it
       throw new Meteor.Error("not-authorized");
     }
 
@@ -1365,19 +1881,34 @@ describe ("the todo page : update task", function() {
   setCompleted: function (taskId, setCompleted) {
     var task = Tasks.findOne(taskId);
 
+    // If the task is private, make sure only the owner can check it off
     if (task.private && task.owner !== Meteor.userId()) {
-      // If the task is private, make sure only the owner can check it off
       throw new Meteor.Error("not-authorized");
     }
     
     Tasks.update(taskId, { $set: { completed: setCompleted} });
   },
-  ...
+  setPrivate: function (taskId, setToPrivate) {
+    var task = Tasks.findOne(taskId);
+
+    // Make sure only the task owner can make a task private
+    if (task.owner !== Meteor.userId()) {
+      throw new Meteor.Error("not-authorized");
+    }
+
+    Tasks.update(taskId, { $set: { private: setToPrivate } });
+  }
+});
 {% endhighlight %}
 
+And with that we have success!
+
+<img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-4.png" class="img-responsive" />
 
 ##Summary
 
+general hints
+- increase timeouts if things seem to fail for no reason
 ###Next steps
 
 ###References
