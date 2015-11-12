@@ -1,18 +1,28 @@
 ---
 layout:     post
-title:      Meteor client integration testing with Velocity and Jasmine - part 1
-summary: In this two part post we'll examine client integration testing with Velocity and Jasmine.  We'll look at how to create fixture and test data, how to handle authenticating user's for our tests and of course how to go about running and creating the tests themselves.
+title:      Meteor Testing with Velocity and Jasmine - part 1
+summary: In this two part post we'll look at client integration testing with Velocity and Jasmine, with a little Jasmine server testing thrown in.  In addition to creating and running tests with Velocity and Jasmine, we'll look at how to create fixture and test data; how to handle authenticating user's for our tests; and briefly cover Jasmine spies.
 ---
-In this post we'll be looking at testing our application with <a href="https://velocity.readme.io/" target="_blank">Velocity</a> and <a href="https://velocity.readme.io/v1.0/docs/getting-started-with-jasmine" target="_blank">Jasmine</a>.  Velocity is the <a href="http://info.meteor.com/blog/meteor-testing-framework-velocity" target="_blank">official testing framework</a> for <a href="https://www.meteor.com/" target="_blank">Meteor</a> applications, so is an obvious choice to make when going about choosing a testing framework.
+In this post we'll be looking at testing our application with <a href="https://velocity.readme.io/" target="_blank">Velocity</a> and <a href="https://velocity.readme.io/v1.0/docs/getting-started-with-jasmine" target="_blank">Jasmine</a>.  Velocity is the <a href="http://info.meteor.com/blog/meteor-testing-framework-velocity" target="_blank">official testing framework</a> for <a href="https://www.meteor.com/" target="_blank">Meteor</a> applications, so is an obvious choice to make when choosing a testing framework.
 
-Automated testing is a great way to verify the functionality of your application and can be a life saver down the road to ensure that when you make changes, nothing is unintentionally broken.  Frameworks like <a href="http://rubyonrails.org/" target="_blank">Ruby on Rails</a> have long had a strong focus on testing with fantastic tools like <a href="http://rspec.info/" target="_blank">RSpec</a> and <a href="https://github.com/jnicklas/capybara" target="_blank">Capybara</a>.  Along with a dedicated <a href="http://guides.rubyonrails.org/testing.html#the-test-environment" target="_blank">testing environment</a> and test data manipulation tools like <a href="https://github.com/thoughtbot/factory_girl" target="_blank">FactoryGirl</a>, testing on Rails is a pleasure.
+Automated testing is a great way to verify the functionality of your application and can be a life saver down the road in ensuring new functionality and changes leave your application in a working state.  Frameworks like <a href="http://rubyonrails.org/" target="_blank">Ruby on Rails</a> have long had a strong focus on testing with fantastic tools like <a href="http://rspec.info/" target="_blank">RSpec</a> and <a href="https://github.com/jnicklas/capybara" target="_blank">Capybara</a>.  Along with a dedicated <a href="http://guides.rubyonrails.org/testing.html#the-test-environment" target="_blank">testing environment</a> and test data manipulation tools like <a href="https://github.com/thoughtbot/factory_girl" target="_blank">FactoryGirl</a>, testing on Rails is a pleasure.
 
-Testing with Meteor has been a bit of a bumpy road in contrast, but Velocity seems to have really stabilized since I last had a whack at it 6 to 8 months or so ago.  Kudos to the Velocity team for all the work they've already and continue to put into the framework.
+Testing with Meteor has been a bit of a bumpy road in contrast, but that's to be expected with a relatively young framework.  Velocity seems to be continuously improving so kudos to the Velocity team for all the work they continue to put into Velocity.
+
+###What is Velocity
+Velocity is a test runner for Meteor applications.  Velocity isn't a test framework itself; it facilitates writing tests in various testing frameworks such as Jasmine, Cucumber, Mocha etc.  In this post we'll be concentrating on Jasmine.  
+
+One of the primary tasks of Velocity is to set-up a mirror of the application under test.  This means tests are run in isolation from the main development environment.  This is helpful when it comes to managing test data and other aspects of testing.
+
+####What is the future of Velocity?
+A very recent development is the transition of Velocity support and development from <a href="http://xolv.io/" target="_blank">Xolv.io</a> to the <a href="https://www.meteor.com/people" target="_blank">Meteor Development Group</a>.  So we'll have to see what this means for Velocity, will it change significantly, will something else replace it?  
+
+Hard to know at this point in time, but regardless, Jasmine will likely be a valid option despite what happens in terms of test runners.  So Velocity might change or be replaced, but in theory should have little impact on how Meteor tests are written in Jasmine.
 
 ##What we'll build
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/done.png" class="img-responsive" />
 
-This will look familiar to anyone who has gone thru the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a>.  Other than some slight deviations, we'll use the tutorial code as the application code to write our tests against.  Note we won't be giving much of an explanation regarding the actual application code; we'll instead be concentrating on the test code.  If you need guidance regarding the application code, the Meteor tutorial itself provides a clear explanation of what is going on.
+This will look familiar to anyone who has gone thru the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a>.  Other than some slight deviations, we'll use the tutorial code as the application to write our tests against.  We won't be giving much of an explanation regarding the actual application code; we'll instead be concentrating on the test code.  If you need guidance regarding the tutorial application, the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> itself provides a clear explanation of what is going on.
 
 So enough chit-chat, let's get started!
 
@@ -23,7 +33,7 @@ Note, if you aren't familiar with Git and / or don't have it installed you can d
 
 #####Terminal
 {% highlight Bash %}
-git clone -b step-1 https://github.com/riebeekn/meteor-client-testing-with-velocity-and-jasmine.git
+git clone -b step-1 https://github.com/riebeekn/meteor-testing-with-velocity-and-jasmine.git
 {% endhighlight %}
 
 ###A quick over-view of where we're starting from
@@ -33,14 +43,14 @@ Open up the code in your text editor of choice and you'll see a pretty standard 
 
 We've deviated from the official tutorial is this respect in that we've gotten rid of the default files and placed things in appropriate directories.
 
-We've also removed the `insecure` and `autopublish` packages right off the bat, where the official tutorial defers doing so until later in the tutorial.  Since we're going to be dealing with creating test data, we want to jettison any crutches from the get go so that we don't come up against a situation where our technique for inserting test data becomes invalid once we remove `insecure`.
+We've also removed the `insecure` and `autopublish` packages right off the bat.  The official tutorial defers doing so until later in the tutorial.  Since we're going to be manipulating test data, we want to jettison any crutches from the get go in order to not run into the situation where our technique for inserting test data becomes invalid once we remove `insecure`.
 
 ###Start up the app
 OK, let's see where we're starting from.
 
 #####Terminal
 {% highlight Bash %}
-cd jasmine-client-integration-testing
+cd meteor-testing-with-velocity-and-jasmine
 meteor
 {% endhighlight %}
 
@@ -48,10 +58,10 @@ You should now see the starting point for our application when you navigate your
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-one.png" class="img-responsive" />
 
-So basically we're at the end of <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">step 1</a> of the tutorial.  We've got application created, our files in place, and we've added the default CSS styles.
+So basically we're at the end of <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">step 1</a> of the tutorial.  We've got the application created, our files are in place, and we've added some default CSS styles.
 
 ##Getting ready to do some testing
-OK, getting ready to test is snap, we just need to install a couple of packages.
+Getting ready to test is a snap, we just need to install a couple of packages.
 
 #####Terminal
 {% highlight Bash %}
@@ -62,16 +72,16 @@ The first package adds everything we need to write Jasmine tests, the second pac
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/velocity.png" class="img-responsive" />
 
-And with that we are ready to get to some testing!
+Velocity works by running a mirror of your application complete with it's own database.  This is very handy as you don't need to worry about your tests messing up your development database or vice-versa.
+
+With that we are ready to get to some testing!
 
 ##Implementing Step 2 of the tutorial
 We're going to take a bit of a test first approach to implementing each step of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">tutorial</a>.
 
-We'll extract the requirements of each step, then write the tests, and then implement the functionality to get our tests to pass.
+We'll extract the requirements of each step, write the tests, and then implement the functionality to get the tests to pass.
 
-There are <a href="https://en.wikipedia.org/wiki/Test-driven_development#Benefits" target="_blank">benefits</a> to a test first approach, so it's a great habit to get into. 
-
-So, let's get to our requirements for <a href="https://www.meteor.com/tutorials/blaze/templates" target="_blank">step 2</a>.
+Let's get to our requirements for <a href="https://www.meteor.com/tutorials/blaze/templates" target="_blank">step 2</a>.
 
 <div class="panel panel-info">
   <div class="panel-heading">
@@ -94,7 +104,7 @@ OK, we have our marching orders, first thing we need to do is set-up a directory
 mkdir -p tests/jasmine/client/integration/todos
 {% endhighlight %}
 
-Next we'll create two files, `page-contents-spec.js` and `task-list-spec.js`.  `page-contents` will be used to specify general items we expect to be present on the page.  `task-list` will be specific to the task list functionality.
+Next we'll create two files, `page-contents-spec.js` and `task-list-spec.js`.  `page-contents` will be used to specify items we expect to be present on the page.  `task-list` will be specific to the task list functionality.
 
 #####Terminal
 {% highlight Bash %}
@@ -102,11 +112,11 @@ touch tests/jasmine/client/integration/todos/page-contents-spec.js
 touch tests/jasmine/client/integration/todos/task-list-spec.js
 {% endhighlight %}
 
-The minute we add a `js` file in our test directory you'll notice a some new output in our server console.
+The minute we add a `js` file in our test directory you'll notice some new output in our server console.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/vel-console.png" class="img-responsive" />
 
-It's a good idea to `tail` the Velocity log, as I've found sometimes the Velocity log is the only place an error with the tests will show up, for instance if there is a compile error in your specs.  Another quick tip, sometimes Velocity will start failing on a few tests for no apparent reason (most of the time I've found this occurs when I add a new file or am switching branches)... usually refreshing the browser seems to clear things up.
+It's a good idea to `tail` the Velocity log, as I've found sometimes the Velocity log is the only place an error with the tests will show up, for instance in cases where there is a compile error in your specs.  Another quick tip, sometimes Velocity will start failing on a few tests for no apparent reason (most of the time I've found this occurs when I add a new file or am switching branches)... usually hard refreshing the browser seems to clear things up.
 
 For our first tests, let's deal with `page-contents-spec.js`.
 
@@ -129,21 +139,21 @@ describe ("the todo page : page contents", function() {
 });
 {% endhighlight %}
 
-I won't go over the details of Jasmine's syntax too much, Velocity currently uses version 2.1 of Jasmine, the <a href="http://jasmine.github.io/2.1/introduction.html" target="_blank">Jasmine documentation</a> is a great place to additional information about Jasmine if you need it.
+I won't go over the details of Jasmine's syntax too much, Velocity currently uses version 2.1 of Jasmine, the <a href="http://jasmine.github.io/2.1/introduction.html" target="_blank">Jasmine documentation</a> is a great place for additional information about Jasmine if you need it.
 
-Anyway, in the `page-contents` spec above, we're describing the general items we expect to be present on the page.  
+In the `page-contents` spec above, we're describing the general items we expect to be present on the page.  
 
-The `describe ("the todo...` line essentially just provides a header for the output of the tests.  This can be anything but descriptive and consistent `describe` text is going to be helpful when reading the test output.
+The `describe ("the todo...` line essentially just provides a header for the output of the tests.  The text within the quotes can be anything but descriptive and consistent `describe` text is going to be helpful when reading the test output.
 
-Next we have 3 tests.  Again the contents of the `it ("...` lines can be whatever descriptive text is appropriate.
+Next we have 3 tests.  Again the contents of the quoted text in the `it ("...` lines can be whatever descriptive text is appropriate.
 
 The `expect` lines are where we are actually testing the functionality of our application.  We're using jQuery to grab elements off the page and comparing the retrieved elements with an expected value.
 
-So with the first test we're grabbing the page title and expecting it to equal 'Todo List'.  
+So with the first test we're grabbing the page title and expecting it to equal `Todo List`.  
 
-The second test we're expecting the page to have a `h1` tag containing the text 'Todo List'.  
+The second test we're expecting the page to have an `h1` tag containing the text `Todo List`.  
 
-Finally in the third test we're expecting a `ul` item on the page; as this is what will contain our list of tasks.
+Finally in the third test we're expecting a `ul` item on the page; this is what will contain our list of tasks.
 
 You'll notice Velocity is now telling us we have some failing tests.
 
@@ -173,9 +183,9 @@ describe ("the todo page : task list", function() {
 });
 {% endhighlight %}
 
-Once again we are using a descriptive explanation for the `describe` and `it` text.  In the test itself we're grabbing all the `li` items from the page (our tasks will be contained in `li` tags) and storing them in the `tasks` variable.  We then check that we have 3 tasks on the page and that the 3 tasks contain the expected text.
+Once again we are using a descriptive explanation for the `describe` and `it` text.  In the test itself we're grabbing all the `li` items from the page (our tasks will be contained in `li` tags) and storing them in the `tasks` variable.  We then check that we have 3 tasks on the page and that the 3 tasks contain the expected text of `This is task 1, This is task... etc`.
 
-With that we have 4 failing tests so let's get these suckers passing!
+We now have 4 failing tests so let's get these suckers passing!
 
 ###Making the tests pass
 First let's update our HTML to include the expected page contents.
@@ -209,7 +219,7 @@ With the above HTML, we now have all 3 of our `page-content` tests passing.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-2-passing.png" class="img-responsive" />
 
-Let's get the task list test to pass, by using some hard-coded values in our template helper.
+Let's get `task-list` to pass.  For now we're going to use some hard-coded values in the template helper.
 
 #####/client/templates/simple-todos.js
 {% highlight JavaScript %}
@@ -274,13 +284,13 @@ Without the hard-coded tasks, we now have 1 failing test.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-3-fail.png" class="img-responsive" />
 
-Although a relatively small change on the implementation side of things, we've got our work cut out for us to get the test back passing.  Now that we are dealing with real data from a database we're going to need to come up with a method of handling our test data.  
+Although a relatively small change on the implementation side of things, we've got our work cut out for us to get the test back to a passing state.  Now that we are dealing with real data from a database we're going to need to come up with a method of handling test data.  
 
 Luckily the <a href="https://velocity.readme.io/docs/jasmine-database-fixtures-for-integration-tests" target="_blank">Velocity documentation</a> suggests a few techniques for handling test data.  The one we'll go with is creating a test package.  The basic idea is to create a debug only package that you can use within your application for managing test data.  This is a pretty clever solution and I think it works really well, so let's get to it!
 
 ###Creating a package to handle the test data.
 
-We'll create our packages directory along with the necessary files for our package.
+The first thing we will do is create a packages directory along with the necessary files for the package.
 
 #####Terminal
 {% highlight Bash %}
@@ -289,7 +299,7 @@ touch packages/testing/task-fixtures.js
 touch packages/testing/package.js
 {% endhighlight %}
 
-Next let's handle `task-fixtures.js`, this is where we'll be manipulating test data related to a task.
+Next let's implement `task-fixtures.js`, this is where we'll be manipulating test data related to a task.
 
 #####/packages/testing/task-fixtures.js
 {% highlight JavaScript %}
@@ -320,11 +330,11 @@ Meteor.methods({
 
 Let's start from the bottom of the file, with `Meteor.methods({...` we're exposing two methods that allow us to create and destroy tasks.  
 
-During the course of our testing we're going to want to create test data and then tear down that test data after we are done with it.  We want to leave our test database in a consistent (i.e. empty) state so that it doesn't get filled up with a bunch of test data cruft.  If we insert data willy nilly without removing it, we won't know what our database contains when we run a particular test, so we need to clear it out regularly.
+During the course of our testing we're going to want to create test data and then tear down that test data after we are done with it.  We want to leave our test database in a consistent (i.e. empty) state so that it doesn't get filled up with a bunch of test data cruft.  If we insert data willy nilly without removing it, we won't know what our database contains at any particular time when we run a test.  This will make it difficult to know what we should actually be expecting to get out of the database and what values we should be testing for.  So we need to ensure we return the database to a known state after every test.
 
-The two methods we've exposed are defined at the top of the file.
+The definition of the two methods we've exposed are at the top of the file.
 
-`createTask` inserts a task to the database.  It takes an optional parameter which we is used to set specific attributes on a task.  The `_.merge({}, getDefaultTask(), taskAttributes);` line merges any passed in attributes with the defaultTask we create via `getDefaultTask`.  With no attributes passed in the created task would have text of 'Task text' and a created at value of the current date.  We could change the text however, via a call such as:
+`createTask` inserts a task to the database.  It takes an optional parameter which can be used to set the specific attributes on a task.  The `_.merge({}, getDefaultTask(), taskAttributes);` line merges any passed in attributes with the defaultTask we create via the `getDefaultTask` function.  With no attributes the created task would have text of 'Task text' and a created at value of the current date.  We could change the text for example, via a call such as:
 
 <div class="no-select-button">
 {% highlight JavaScript %}
@@ -334,9 +344,9 @@ Meteor.call('fixtures.createTask', {
 {% endhighlight %}
 </div>
 
-The `destroyTasks` method simply clears out our `Tasks` table.
+The `destroyTasks` method simply clears out the `Tasks` table.
 
-With our implementation out of the way, next we need to fill in `package.js`.
+With our implementation out of the way, the next step is to fill in the `package.js` file.
 
 #####/packages/testing/package.js
 {% highlight JavaScript %}
@@ -345,7 +355,7 @@ Package.describe({
   version: '0.0.0',
   summary: 'Tools that help us testing the app',
   documentation: 'README.md',
-  // This tools are only available in development mode! (for security)
+  // Only available in development mode! (for security)
   debugOnly: true
 });
 
@@ -360,9 +370,9 @@ Package.onUse(function (api) {
 });
 {% endhighlight %}
 
-So this package definition is taken pretty much verbatim from the <a href="https://github.com/Sanjo/SpaceTalk/blob/feature/testing/packages/testing/package.js" target="_blank">Velocity example</a>.  
+This package definition is taken pretty much verbatim from the <a href="https://github.com/Sanjo/SpaceTalk/blob/feature/testing/packages/testing/package.js" target="_blank">Velocity example</a>.  
 
-The main point to emphasize is the use of the `debugOnly` flag... this is very important!  Without this we're going to expose our test methods outside of development mode... certainly not something that we want!
+The main point to emphasize is the use of the `debugOnly` flag... this is very important!  Without this we're going to expose our test methods outside of development mode... certainly not something we want!
 
 Otherwise the package file is very standard, we're specifying the required Meteor version, followed by the 3rd party libraries our package needs.  Finally, we expose the `task-fixtures.js` file via the `api.addFiles` line.  If you need a refresher on package files, I suggest this <a href="http://themeteorchef.com/recipes/writing-a-package/" target="_blank">Meteor Chef article</a>.
 
@@ -375,7 +385,7 @@ OK, let's make use of our package, first thing we'll do is add it.
 meteor add testing
 {% endhighlight %}
 
-Now we can use it in our `task-list` spec.
+Now we have access to it in our `task-list` spec.
 
 #####/tests/jasmine/client/integration/todos/task-list-spec.js
 {% highlight JavaScript %}
@@ -401,23 +411,25 @@ describe ("the todo page : task list", function() {
       expect(tasks[1]).toEqual('This is task 2');
       expect(tasks[2]).toEqual('This is task 3');
       done();
-    }, 200);
+    }, 400);
   });
 
 });
 {% endhighlight %}
 
-The first change we've made to our `spec` is the use of `beforeEach` and `afterEach` functions.  As the name suggests these functions will run before and after each test.  This is very handy as `beforeEach` provides a good place for us to create our test data and then we can tear it down and keep our database clean by running `afterEach`.
+Sweet!
 
-In the `beforeEach` function we are creating the 3 tasks that we'll be testing, and we're using our `test` package to create the data.  The `afterEach` function cleans the data via the `destroyTasks` method of the test package.
+The first change we've made is to use `beforeEach` and `afterEach` functions for setting up and tearing down the test data.  As the name suggests these functions will run before and after each test.  This is very handy as `beforeEach` provides a good place for us to create our test data and then we can tear it down and keep our database clean by running `afterEach`.
 
-The actual test code has changed somewhat as well, we've added a timeout to the test.  The timeout is used to compensate for the slight delay of retrieving the tasks from the database and displaying them on the UI.  If we don't have a timeout, the test will too quickly and will complete prior to the tasks showing up on the UI.  Setting timeouts on tests is a bit of a pain and choosing a timeout value is a bit arbitrary.  As you'll see sometimes 200 milliseconds seems to work great, other times a shorter or longer timeout is required.  In general a bit of experimentation is required in choosing a timeout value.
+In the `beforeEach` function we are creating 3 tasks via our test package.  The `afterEach` function cleans the data.
 
-One other thing to note is the use of the Jasmine 2.0 `done` function.  This is necessary to indicate to Jasmine that the test is asynchronous, without it we'll get a Jasmine error in the browser console... even worse our test will appear to still pass, so it's always a good idea to keep an eye on the browser console and the Velocity logs when creating your tests to make sure everything is running as expected.
+The test code has changed slightly as well.  For one we've added a timeout to the test.  The timeout is used to compensate for the slight delay of retrieving the tasks from the database and displaying them on the UI.  If we don't have a timeout, the test will run too quickly and complete prior to the tasks showing up on the UI.  Setting timeouts on tests is a bit of a pain and choosing a timeout value is a bit arbitrary.  Sometimes 400 milliseconds seems to work great, other times a shorter or longer timeout is required.  In general a bit of experimentation is required in choosing a timeout value.  I've found it's better to err on the side of longer timeouts.
+
+One other thing to note is the use of the Jasmine 2.0 `done` function.  This is necessary to indicate to Jasmine that the test is asynchronous, without it we'll get a Jasmine error in the browser console... even worse our test will appear to still pass within Velocity.  It's always a good idea to keep an eye on the browser console and the Velocity logs when creating your tests to make sure everything is running as expected.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/jasmine-error.png" class="img-responsive" /> 
 
-Anyway, with `done` in the mix we've got our tests passing and we have no browser console or log errors.
+Anyway, with `done` in the mix we've got our tests passing and we have no browser or console errors.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-3-passing.png" class="img-responsive" />
 
@@ -444,7 +456,7 @@ OK, looks like we have a decent chunk of work ahead of us, let's get to it!
 
 ###Writing our tests and implementing step 4
 
-Looking at the requirements we'll need to update the `page-contents` spec to include the new input field.  Also the `task-list` spec needs to explicitly check for the sort order of the tasks.  In addition to these changes we'll add a new spec to test the functionality around creating tasks.
+Looking at the requirements we'll need to update the `page-contents` spec for the new input field.  Also the `task-list` spec needs to explicitly check for the sort order of the tasks.  In addition to these changes we'll add a new spec to test the functionality around creating new tasks.
 
 ####task-list-spec.js
 
@@ -480,19 +492,19 @@ describe ("the todo page : task list", function() {
       expect(tasks[1]).toEqual('This is task 2');
       expect(tasks[2]).toEqual('This is task 1');
       done();
-    }, 200);
+    }, 400);
   });
 
 });
 {% endhighlight %}
 
-The first change is to explicitly set a `createdAt` date for each task so we can ensure they display in the expected order.
+The first change is to explicitly set a `createdAt` date for each task so we know what order we should be expecting them to appear.
 
 Next we've updated the title of our test in the `it ("should...` statement to indicate the tasks should display in a particular order.
 
 And finally we've changed the order of the tasks in the `expect statements`.
 
-With these changes we have ourselves a failing test.
+With these changes we have a failing test.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-4-fail-1.png" class="img-responsive" />
 
@@ -590,7 +602,7 @@ describe ("the todo page : new task field", function() {
       expect(task).not.toBe(undefined);
       expect(task.text).toEqual('My new task');
       done();
-    }, 300);
+    }, 400);
   });
 
   it ("should clear out the new task field on form submit", function(done) {
@@ -598,7 +610,7 @@ describe ("the todo page : new task field", function() {
       addTaskViaUI('Another new task');
       expect($('.new-task input').val()).toEqual('');
       done();
-    }, 200);
+    }, 400);
   });
   
 });
@@ -611,9 +623,9 @@ var addTaskViaUI = function(taskName) {
 
 We've added two tests to this spec.  
 
-The first tests adds a new task and then checks that the new task shows up in both the UI and the database.  
+The first test adds a new task and then checks that the new task shows up in both the UI and the database.  
 
-The code is pretty straight forward, we've created a helper function `addTaskViaUI` that we're calling to perform the task insert.  All the helper does is fill in the input field in the UI and then submit the form.  Then we use Jasmine `expect` calls to ensure the UI and database are in the expected state.
+The code is pretty straight forward, we've created a helper function `addTaskViaUI` that we're calling to perform the task insert.  The helper fills in the input field and then submits the form.  Then back in our test we use Jasmine `expect` calls to ensure the UI and database are in the expected state.
 
 The second test just checks that the input field is cleared out after the form submits.
 
@@ -639,7 +651,7 @@ Template.body.events({
 });
 {% endhighlight %}
 
-And with that Velocity is back working and we see our new tests are failing.
+And with that Velocity is back working and we see our new tests failing.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-4-fail-3.png" class="img-responsive" />
 
@@ -684,13 +696,11 @@ Meteor.methods({
 });
 {% endhighlight %}
 
-OK, so we're adding a new `Task` record in our method.  The `text` of the `Task` will be what gets passed into the method, the `createdAt` date will be set to the current date / time.
-
-We now have passing tests!
+And with that we now have passing tests!
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-4-passing.png" class="img-responsive" />
 
-Before moving on let's do a quick refactor as we're seeing a bit of code duplication creep into our tests.  Specifically the code to grab the current tasks displaying in the UI, i.e.
+Before moving on let's do a quick refactor as we're seeing a bit of code duplication creep into the tests.  Specifically the code to grab the tasks displayed in the UI, i.e.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
@@ -700,7 +710,7 @@ var tasks = $("li").map(function() {
 {% endhighlight %}
 </div>
 
-So let's move that into a helper and clean up the duplication.
+Let's move this code into a helper and clean up the duplication.
 
 #####Terminal
 {% highlight Bash %}
@@ -721,7 +731,7 @@ TodosSpecHelper.retrieveTasksFromUI = function() {
 }
 {% endhighlight %}
 
-With the above we've created a helper class that contains the code to grab the current tasks from the UI.
+We now have a helper class that contains the code to grab the current tasks from the UI.
 
 We now need to update `new-task-spec.js` and `task-list-spec.js`.
 
@@ -778,7 +788,7 @@ With step 5 we're going to be adding some new elements to each task on our UI, n
 
 We'll also create a new spec to test the removal functionality and another new spec to test that a task can be updated (for the completion functionality).
 
-Finally we'll want to update `new-task` to ensure that newly inserted tasks are marked as not complete.
+Finally we'll want to update `new-task` to ensure that newly inserted tasks are marked as not complete by default.
 
 So let's get going, we'll start with the `task-item` spec.
 
@@ -813,7 +823,7 @@ describe ("the todo page : an individual task item", function() {
       expect(tasks.length).toEqual(1);
       expect(tasks[0]).toEqual('The task');
       done();
-    }, 200);
+    }, 400);
   });
 
   it ("should include a checkbox to mark the task as complete", function(done) {
@@ -821,7 +831,7 @@ describe ("the todo page : an individual task item", function() {
       var checkbox = $('li').find("input:checkbox");
       expect(checkbox.length).toEqual(1);
       done();
-    }, 100);
+    }, 400);
   });
 
   it ("should include a delete button", function(done) {
@@ -829,7 +839,7 @@ describe ("the todo page : an individual task item", function() {
       var deleteButton = $('.delete');
       expect(deleteButton.length).toEqual(1);
       done();
-    }, 200);
+    }, 400);
   });
   
 });
@@ -839,7 +849,7 @@ OK, so first off in the `before` and `after` blocks we're just setting up and th
 
 Then we have 3 tests.  In the first test we're checking that the task text is correct.  The second test is ensuring we have a checkbox available for marking the task as complete, and finally the third test is checking for the presence of a delete button.
 
-The first test is going to pass as we're already displaying the task text, the second two tests will fail however.
+The first test is going to pass as we're already displaying the task text, the second two tests will fail.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-5-fail-1.png" class="img-responsive" />
 
@@ -867,7 +877,7 @@ Alas, we've gone backwards, we now have even more tests failing than before, wha
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-5-fail-2-detail.png" class="img-responsive" />
 
-It appears we're no longer grabbing the task text correctly, the `x` symbol we're using as the delete button is coming in along with the task text.
+It appears we're no longer grabbing the task text correctly, the `x` symbol we're using as the delete button is coming in along with the text.
 
 So let's fix that.
 
@@ -921,7 +931,7 @@ describe ("the todo page : remove task", function() {
       // ensure it is not in the UI
       expect($('li').size()).toEqual(0);
       done();
-    }, 100);
+    }, 400);
   });
 
 });
@@ -1015,13 +1025,13 @@ describe ("the todo page : update task", function() {
         // ensure the checkbox is now checked
         expect($("li").find("input:checkbox").is(':checked')).toEqual(true);
         done();
-      }, 200);
+      }, 400);
     });
 
     it ("should show a strike-through for the completed tasks", function(done) {
       Meteor.setTimeout(function() {
         $("li").find("input:checkbox").click();
-      }, 200);
+      }, 400);
 
       Meteor.setTimeout(function() {
         expect($("li").hasClass('checked')).toBe(true);
@@ -1037,13 +1047,13 @@ OK, first off we set up some fixture data, inserting a single task before our te
 
 In the first test we're marking the task as complete by clicking the checkbox for the task.  We then check the record has been updated in the database and the UI.
 
-With the second test we test that the style for the item gets updated for completed tasks.  Note the use of two timeout blocks in this test.  I've found that for CSS changes it often seems like one timeout is required around the actual action (i.e. clicking the checkbox) and a separate timeout is required around the checking of the updated class.  I believe what is happening is the first timeout is required for the database / method latency, the second for the DOM updates.  IS THIS NEEDED / TRUE???
+With the second test we check that the style for the item gets updated for completed tasks.  Note the use of two timeout blocks in this test.  I've found that for CSS changes it often seems like one timeout is required around the actual action (i.e. clicking the checkbox) and a separate timeout is required around the checking of the updated class.  I believe the first timeout is required for the database / method latency, the second for the DOM updates, but to be honest I'm not 100% certain of that.
 
 We've got ourselves 2 failing tests as expected.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-5-fail-4.png" class="img-responsive" />
 
-Let's address that first error, what's up with Expected <i>undefined</i> to equal true?  Shouldn't we be getting a false value returned since we have yet to implement the completed functionality?  We need to update our fixture code to take into account our new field.
+Let's address that first error, what's up with Expected <i>undefined</i> to equal true?  Shouldn't we be getting a false value returned since we have yet to implement the completed functionality?  The issue is we need to update our fixture code to take into account our new field otherwise it is going to come back as undefined.
 
 #####/packages/testing/task-fixtures.js
 {% highlight JavaScript %}
@@ -1058,7 +1068,7 @@ var getDefaultTask = function() {
 ...
 {% endhighlight %}
 
-So we've added our new field into the default task that gets created by our fixture.  With that change we see the error we expected.
+So we've added the `completed` field in the default task.  With that change we see the error we would expect.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-5-fail-5.png" class="img-responsive" />
 
@@ -1115,13 +1125,13 @@ describe ("the todo page : update task", function() {
       // verify the status of the UI checkbox
       expect($("li").find("input:checkbox").is(':checked')).toEqual(completeTask);
       done();
-    }, 200);
+    }, 400);
   }
 
   var toggleStatusAndCheckStrikeThru = function(completeTask, done) {
     Meteor.setTimeout(function() {
       $("li").find("input:checkbox").click();
-    }, 200);
+    }, 400);
 
     Meteor.setTimeout(function() {
       expect($("li").hasClass('checked')).toBe(completeTask);
@@ -1134,7 +1144,7 @@ describe ("the todo page : update task", function() {
 
 OK, a bit of a code dump... let's first look at what we've done with our 2 existing tests.  We've basically taken the tests and refactored them out into 2 helper functions `toggleAndCheckTaskStatus` and `toggleStatusAndCheckStrikeThru`.
 
-The point of this is so that our re-activation tests don't contain a bunch of copy and pasted code.  The only thing that is different for the re-activation tests is the initial test data created in the `before` and `after` blocks along with whether the test should be checking for a completed or not completed task.  So our helper functions take in a parameter indicating whether a task is being completed or not and we can thus re-use the test code for both the complete and re-activate tests.
+The point of this is so that our re-activation tests don't contain a bunch of duplicate code.  The only thing that is different for the re-activation tests is the initial test data created in the `before` and `after` blocks and whether the test should be checking for a completed or not completed task.  So our helper functions take in a parameter indicating whether a task is being completed or not and we can thus re-use the test code for both the complete and re-activate tests.
 
 We now have 3 failing tests, the test that checks for the removal of the strike through when a task is re-activated is going to pass as the implementation code currently does not toggle the class of a task based on it's completion status.
 
@@ -1185,7 +1195,7 @@ And with that we are back to passing.
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-5-pass-3.png" class="img-responsive" />
 
 ####new-task-spec.js
-Phew, step 5 is turning out to be a bit of a bear, but we're finally on the home stretch, just one more test to update.  We want to make sure newly created tasks have a value of `false` for their completed status.
+Phew, step 5 is turning out to be a bit of a bear, but we're finally on the home stretch, just one more test to update.  We want to make sure new tasks have a default value of `false` for their completed status.
 
 ######Tests
 
@@ -1208,7 +1218,7 @@ Phew, step 5 is turning out to be a bit of a bear, but we're finally on the home
       expect(task.text).toEqual('My new task');
       expect(task.completed).toBe(false);
       done();
-    }, 300);
+    }, 400);
   });
   ...
 {% endhighlight %}
@@ -1260,9 +1270,9 @@ Wait a minute, what happened to step <a href="https://www.meteor.com/tutorials/b
 </div>
 
 ###Writing our tests and implementing step 8
-So looks like we'll need to update `page-contents` as we'll include a new checkbox in our application that toggles whether we show all tasks or just uncompleted tasks.  We'll also be changing the format of our Todo header to include the count of uncompleted tasks.
+So looks like we'll need to update `page-contents` to include a checkbox that toggles whether we show all tasks or just uncompleted tasks.  We'll also be changing the format of our Todo header to include the count of uncompleted tasks.
 
-We're also going to need to update `task-list` as the tasks that are displayed will depend on whether they are complete or not and whether the show incomplete tasks checkbox has been activated.
+We're also going to need to update `task-list` as the tasks that are displayed will depend on their completion status and whether the show incomplete tasks checkbox has been activated.
 
 Let's start by changing `page-contents`.
 
@@ -1283,7 +1293,7 @@ describe ("the todo page : page contents", function() {
     Meteor.setTimeout(function() {
       expect($('h1').text()).toEqual('Todo List (0)');
       done();
-    }, 200);
+    }, 400);
   });
 
   ...
@@ -1326,13 +1336,11 @@ OK, let's get these tests passing!
       ...
 {% endhighlight %}
 
-We've changed our header to include a count or incomplete tasks and added a new checkbox for hiding completed tasks.
+We've changed our header to include a count of incomplete tasks and added a new checkbox for hiding completed tasks.
 
 With this change we're down to one failing test.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-8-fail-2.png" class="img-responsive" />
-
-One more to go!
 
 #####/client/templates/simple-todos.js
 {% highlight JavaScript %}
@@ -1350,7 +1358,7 @@ Template.body.helpers({
 ...
 {% endhighlight %}
 
-Adding the `incompleteCount` helper resolves our final failing test.
+Adding the `incompleteCount` helper resolves the final failing test.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-8-pass-1.png" class="img-responsive" />
 
@@ -1385,7 +1393,7 @@ describe ("the todo page : task list", function() {
         expect(tasks[1]).toEqual('This is task 2');
         expect(tasks[2]).toEqual('This is task 1');
         done();
-      }, 200);
+      }, 400);
     });
 
   });
@@ -1410,7 +1418,7 @@ describe ("the todo page : task list", function() {
           expect(tasks[0]).toEqual('This is task 3');
           expect(tasks[1]).toEqual('This is task 2');
           done();
-        }, 200);
+        }, 400);
     });
 
   });
@@ -1422,7 +1430,7 @@ So what have we changed?  We've altered our test data slightly, marking the firs
 
 We've then added describe sections for testing the `show all` functionality vs the `incomplete only` functionality.  In the case of the incomplete tasks we add additional `before` and `after` blocks to trigger the "hide complete" checkbox.
 
-Our test for incomplete tasks is the same as that for complete tasks, just with less tasks due to the `expect` section as the complete tasks won't be showing.
+Our test for incomplete tasks is the same as that for complete tasks, just with less tasks in the `expect` section as the complete task should not show up.
 
 As usual Velocity let's us know we have a failing test.
 
@@ -1465,7 +1473,7 @@ Template.body.events({
 ...
 {% endhighlight %}
 
-We've updated the `tasks` helper to filter the tasks that get returned based on whether completed tasks should be shown or not.  A new `hideCompleted` helper has been added to retrieve the value of the `hideCompleted` session variable.  And finally we have a new event handler for the `hideCompleted` checkbox.
+We've updated the `tasks` helper to filter tasks based on whether completed tasks should be shown or not.  A new `hideCompleted` helper has been added to retrieve the value of the `hideCompleted` session variable.  And finally we have a new event handler for the `hideCompleted` checkbox.
 
 With that all tests are passing.
 
@@ -1474,8 +1482,8 @@ With that all tests are passing.
 ##Summary
 So that takes us through some of the steps involved in writing tests with <a href="https://velocity.readme.io/" target="_blank">Velocity</a> and <a href="https://velocity.readme.io/v1.0/docs/getting-started-with-jasmine" target="_blank">Jasmine</a>.  
 
-We've looked at basic steps such as getting Velocity up and running and have looked at a way to handle test data within our tests.
+We've looked at basic steps such as getting Velocity up and running and have looked at a way to handle test data within tests.
 
-In part 2 we'll finish off the rest of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> and look at one way to handle users and authentication within our tests.
+In part 2 we'll finish off the rest of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> and look at one way to handle users and authentication within our tests and have a quick look at server tests and Jasmine spies.
 
 Thanks for reading and hope you enjoyed part 1!

@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      Meteor client integration testing with Velocity and Jasmine - part 2
-summary: In this two part post we'll examine client integration testing with Velocity and Jasmine.  We'll look at how to create fixture and test data, how to handle authenticating user's for our tests and of course how to go about running and creating the tests themselves.
+title:      Meteor Testing with Velocity and Jasmine - part 2
+summary: In this two part post we'll look at client integration testing with Velocity and Jasmine, with a little Jasmine server testing thrown in.  In addition to creating and running tests with Velocity and Jasmine, we'll look at how to create fixture and test data; how to handle authenticating user's for our tests; and briefly cover Jasmine spies.
 ---
 In this post we'll be continuing right from where we left off with <a href="/meteor-client-integration-testing-with-velocity-and-jasmine-part-1/index.html" target="_blank">part 1</a>.  We have a good chunk of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> implemented along with associated tests.  Part 2 will complete that work and deal with handling users and authentication within our tests.
 
