@@ -288,7 +288,7 @@ Without the hard-coded tasks, we now have 1 failing test.
 
 Although a relatively small change on the implementation side of things, we've got our work cut out for us to get the test back to a passing state.  Now that we are dealing with real data from a database we're going to need to come up with a method of handling test data.  
 
-Luckily the <a href="https://velocity.readme.io/docs/jasmine-database-fixtures-for-integration-tests" target="_blank">Velocity documentation</a> suggests a few techniques for handling test data.  The one we'll go with is creating a test package.  The basic idea is to create a debug only package that you can use within your application for managing test data.  This is a pretty clever solution and I think it works really well, so let's get to it!
+Luckily the <a href="https://meteor-testing.readme.io/docs/jasmine-database-fixtures-for-integration-tests" target="_blank">Velocity documentation</a> suggests a few techniques for handling test data.  The one we'll go with is creating a test package.  The basic idea is to create a debug only package that you can use within your application for managing test data.  This is a pretty clever solution and I think it works really well, so let's get to it!
 
 ###Creating a package to handle the test data.
 

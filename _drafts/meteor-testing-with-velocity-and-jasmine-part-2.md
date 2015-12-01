@@ -1954,7 +1954,25 @@ And with that we have success!
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-11-pass-5.png" class="img-responsive" />
 
 ##Summary
+So hopefully these 2 posts have provided a bit of an introduction to <a href="https://velocity.readme.io/" target="_blank">Velocity</a> and <a href="https://velocity.readme.io/v1.0/docs/getting-started-with-jasmine" target="_blank">Jasmine</a>.  
+
+It should be noted that there are other ways of using Jasmine to test applications, for instance <a href="http://g00glen00b.be/unit-testing-meteor-applications-with-velocity-jasmine-and-sinon-js/" target="_blank">this article</a> makes extensive use of mocks.
+
+My impression of Velocity is that it works pretty good and with some minor improvements / changes could be very solid.  One of the main issues I see is speed.  Once you have a large set of tests built up against a non-trivial application I don't think watching and re-running all the tests on each file change is going to work well.  An option to watch only certain files / specs would be useful, along with the ability to run tests on demand from the command line similar to RSpec.
 
 ###Next steps
+It feels like a bit of a lost opportunity that for whatever reason the Meteor Development Group wasn't able to leverage the talents of the Velocity team and more fully integrate Velocity into Meteor.  I hoped the testing story for Meteor would really emerge and get stronger this year but it feels a ways off still.  I could understand someone passing over Meteor for another framework that has the testing story more solidified.
+
+Given the newly orphaned state of Velocity it's a little hard to say if it is a good idea to rely on it going forward.  How brittle it is to changes to Meteor?  Will a future update to Meteor break Velocity?  It seems possible and with no one maintaining Velocity, breaking changes might stay broke.
+
+With that in mind, keeping an eye on the <a href="https://github.com/meteor/guide" target="_blank">Meteor Guide</a> recommendations for <a href="https://github.com/meteor/guide/blob/master/outlines/testing-outline.md" target="_blank">testing</a> is likely a good idea, although at this point it's still a work in progress.
+
+Another work in progress is <a href="http://www.meteortesting.com/" target="_blank">The Meteor Testing Manual</a>.  I think eventually this will be an excellent resource, it's written by one of the authors behind Velocity.
+
+Another project from the Velocity authors is a testing framework called <a href="http://xolv.io/products/chimp" target="_blank">Chimp</a>.  Looks to be worth a gander, I haven't looked into it as of yet so can't comment on how easy it is to handle test data etc. with it.
 
 ###References
+A couple of resources that helped with putting together this post include:
+
+* The <a href="https://meteor-testing.readme.io/docs/getting-started" target="_blank">Meteor Jasmine documentation</a>.
+* One of the first <a href="https://doctorllama.wordpress.com/2014/09/22/bullet-proof-internationalised-meteor-applications-with-velocity-unit-testing-integration-testing-and-jasmine/" target="_blank">tutorials I saw on using Jasmine with Meteor</a>.
