@@ -3,7 +3,7 @@ layout:     post
 title:      Meteor Testing with Velocity and Jasmine - part 2
 summary: In this two part post we'll look at client integration testing with Velocity and Jasmine, with a little Jasmine server testing thrown in.  In addition to creating and running tests with Velocity and Jasmine, we'll look at how to create fixture and test data; how to handle authenticating user's for our tests; and briefly cover Jasmine spies.
 ---
-In this post we'll be continuing from where we left off with <a href="/meteor-client-integration-testing-with-velocity-and-jasmine-part-1/index.html" target="_blank">part 1</a>.  We have a good chunk of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> completed along with associated tests.  In Part 2 we'll finish the tutorial and deal with handling users and authentication within our tests.
+In this post we'll be continuing from where we left off with <a href="/meteor-testing-with-velocity-and-jasmine-part-1/index.html" target="_blank">part 1</a>.  We have a good chunk of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> completed along with associated tests.  In Part 2 we'll finish the tutorial and deal with handling users and authentication within our tests.
 
 So onto <a href="https://www.meteor.com/tutorials/blaze/adding-user-accounts" target="_blank">step 9...</a>
 
@@ -30,7 +30,7 @@ As well, `new-task` will need to include the new rule about logged in users  bei
 
 Finally we need to update `task-item` as tasks now display who created them in the UI.
 
-A bit of set-up is going to be required before we can get to the actual testing.  We need to figure out how to handle accounts within our tests.  First off let's add the necessary authentication packages.
+A bit of set-up is going to be required before we can get to the actual testing.  We need to figure out how to handle accounts within tests.  First off let's add the necessary authentication packages.
 
 #####Terminal
 {% highlight Bash %}
@@ -142,7 +142,7 @@ Again we need to update `package.js`.
 
 We've added the new file and exported the `TestUser` class.
 
-Finally let's alter our task fixture to automatically assign a user to a task when a user is logged in.
+Finally let's alter our task fixture to automatically assign a user to a task when a user is logged in and default to 'Bob' when a user isn't signed in.
 
 #####/packages/testing/task-fixtures.js
 {% highlight JavaScript %}
@@ -174,9 +174,9 @@ var getDefaultTask = function() {
 ...
 {% endhighlight %}
 
-We're checking if a user is logged in, if so that's who the task gets associated with, otherwise we are going to default the owner to 'Bob'.  We could omit the else block where we assign the task to 'Bob' when a user is not logged in... but automatically assigning a user is going to make the `before` blocks in our tests less bloated, we don't have to worry about always logging in just to get our task test data associated with a user.
+We're checking if a user is logged in, if so that's who the task gets associated with, otherwise we are going to default the owner to 'Bob'.  We could omit the else block where we assign the task to 'Bob' when a user is not logged in... but automatically assigning a user is going to make the `before` blocks in our tests less bloated, we don't have to worry about always logging in just to get our task data associated with a user.
 
-Sweet, now we can get onto the actual tests.
+Sweet, now we can get onto the actual tests.  Let's start by checking for the login / logout link and that the new task field only appears for logged in users.
 
 ####page-contents-spec.js
 
@@ -265,7 +265,7 @@ First off we have a `before` block which logs in our test user, notice the diffe
 
 Our `for logged in users` tests check that a logged in link exists consisting of the user's name and that the new task input is available.
 
-Conversely the `for logged out users` tests contain a call to `logout` in the `before` block and then check for a login link and that the new task field does not show up.
+Conversely the `for logged out users` tests contain a call to `logout` in the `before` block and then checks for a login link and that the new task field does not show up.
 
 With these changes we have 3 tests failing.  
 
@@ -319,7 +319,7 @@ And with that we have our `page-contents` tests passing, but we seem to have som
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/step-9-fail-2.png" class="img-responsive" />
 
-This makes sense, we now are going to need to login in order to have access to the new task field, so let's update `new-task`.  While we are at it, we'll update `new-task` to check that tasks are associated with the correct user on creation and that the task text is now prepended with the username.
+This makes sense, we are going to need to login in order to have access to the new task field, so let's update `new-task`.  While we are at it, we'll update `new-task` to check that tasks are associated with the correct user on creation and that the task text is prepended with the username.
 
 #####/tests/jasmine/client/integration/todos/new-task-spec.js
 {% highlight JavaScript %}
@@ -498,7 +498,7 @@ Onto <a href="https://www.meteor.com/tutorials/blaze/security-with-methods" targ
 
 ##Implementing Step 10 of the tutorial
 
-Step 10 of the tutorial is where the `insecure` package is removed and everything is moved into Meteor methods.  We removed `insecure` off the drop so are ahead of the game in this respect.  There is one minor requirement we can test for however.
+Step 10 of the tutorial is where the `insecure` package is removed and everything is moved into Meteor methods.  We removed `insecure` off the drop so are ahead of the game.  There is one minor requirement we can test for however.
 
 <div class="panel panel-info">
   <div class="panel-heading">
@@ -546,7 +546,7 @@ There are a few problems with this approach.
 
 First off since we're just calling a Meteor method directly it doesn't seem like much of a client test, we've got no client going on here! 
 
-Second, although it's a valid, passing test we get a nasty error showing up in the browser console due to the `not-authorized` exception that gets thrown by our method.  Although we are checking for this exception in our test it still is going to propagate to the browser console.  This is ugly as it means our browser console is getting populated with cruft and it's going to be easy to overlook any actual errors hitting the browser console down the line.
+Second, although it's a valid, passing test we get a nasty error showing up in the browser console due to the `not-authorized` exception that gets thrown by our method.  Although we are checking for this exception in our test it still is going to propagate to the browser console.  This is ugly as it means our browser console is getting populated with cruft and it's going to be easy to overlook any new errors hitting the browser console down the line.
 
 <img src="../images/posts/meteor-client-testing-with-velocity-and-jasmine/cruft.png" class="img-responsive" />
 
@@ -900,7 +900,7 @@ it ("should not show up for user's that do not own the task", function(done) {
 
 OK, here we're making use of our new user `Sally`, we login as her and ensure she is unable to see `Bob's` private task.
 
-Finally let's make sure that `Bob` can see his task.
+Finally let's make sure that `Bob` can see both of his tasks.
 
 <div class="no-select-button">
 {% highlight JavaScript %}
@@ -1205,7 +1205,7 @@ Finally let's test the display of private tasks.
 {% endhighlight %}
 </div>
 
-We create a private task owned by the current user and check that it has the appropriate class in the test.
+We create a private task owned by the current user and check that it has the appropriate class.
 
 The full listing is:
 
@@ -1332,6 +1332,8 @@ Let's get these tests passing, first we'll update the HTML.
 
 #####/client/templates/simple-todos.html
 {% highlight HTML %}
+...
+...
 <template name="task">
   <li class="{% raw %}{{#if completed}}checked{{/if}} {{#if private}}private{{/if}}{% endraw %}">
     <button class="delete">&times;</button>
@@ -1815,9 +1817,9 @@ it ("should not be able to be completed", function() {
 {% endhighlight %}
 </div>
 
-This is where we make use of our `spy`, specifying that `Meteor.userId()` should return `someOtherUserId`.  Since the `ownerId` from our task, `someUserId`, doesn't match the value that will get returned from `Meteor.userId()` we have set up a scenario where we expect a `not-authorized` exception to be thrown.
+This is where we make use of our `spy`, specifying that `Meteor.userId()` should return `someOtherUserId`.  Since the `ownerId` from our task (`someUserId`) doesn't match the value that will get returned from the spied up `Meteor.userId()` call, we have set up a scenario where we expect a `not-authorized` exception to be thrown.
 
-After setting up the spy, we call into the `setCompleted` method, passing in the `taskId` and a value of `true`.
+After setting up the spy, we can get into performing our test by calling into the `setCompleted` method, passing in the `taskId` we've stored from the `beforeEach` callback.
 
 We'll do a very similar thing for the other tests. The full listing is below.
 
@@ -1960,16 +1962,26 @@ It should be noted that there are other ways of using Jasmine to test applicatio
 
 My impression of Velocity is that it works pretty good and with some minor improvements / changes could be very solid.  One of the main issues I see is speed.  Once you have a large set of tests built up against a non-trivial application I don't think watching and re-running all the tests on each file change is going to work well.  An option to watch only certain files / specs would be useful, along with the ability to run tests on demand from the command line similar to RSpec.
 
-###Next steps
-It feels like a bit of a lost opportunity that for whatever reason the Meteor Development Group wasn't able to leverage the talents of the Velocity team and more fully integrate Velocity into Meteor.  I hoped the testing story for Meteor would really emerge and get stronger this year but it feels a ways off still.  I could understand someone passing over Meteor for another framework that has the testing story more solidified.
+It feels like a bit of a lost opportunity that for whatever reason the Meteor Development Group wasn't able to leverage the talents of the Velocity team and more fully integrate Velocity into Meteor.  I hoped the testing story for Meteor would really emerge and get stronger this year but it feels a ways off especially with the recent Velocity developments.  I could understand someone passing over Meteor for a framework that has the testing story more solidified.
 
+###Next steps
 Given the newly orphaned state of Velocity it's a little hard to say if it is a good idea to rely on it going forward.  How brittle it is to changes to Meteor?  Will a future update to Meteor break Velocity?  It seems possible and with no one maintaining Velocity, breaking changes might stay broke.
 
-With that in mind, keeping an eye on the <a href="https://github.com/meteor/guide" target="_blank">Meteor Guide</a> recommendations for <a href="https://github.com/meteor/guide/blob/master/outlines/testing-outline.md" target="_blank">testing</a> is likely a good idea, although at this point it's still a work in progress.
+With that in mind, keeping an eye on the <a href="https://github.com/meteor/guide" target="_blank">Meteor Guide</a> recommendations for <a href="https://github.com/meteor/guide/blob/master/outlines/testing-outline.md" target="_blank">testing</a> is likely a good idea, although at this point the guide is still a work in progress. 
 
 Another work in progress is <a href="http://www.meteortesting.com/" target="_blank">The Meteor Testing Manual</a>.  I think eventually this will be an excellent resource, it's written by one of the authors behind Velocity.
 
-Another project from the Velocity authors is a testing framework called <a href="http://xolv.io/products/chimp" target="_blank">Chimp</a>.  Looks to be worth a gander, I haven't looked into it as of yet so can't comment on how easy it is to handle test data etc. with it.
+Another project from the Velocity authors is a testing framework called <a href="http://xolv.io/products/chimp" target="_blank">Chimp</a>.  Looks to be worth a look, I haven't checked into it as of yet so can't comment on how easy it is to handle test data etc. with it.
+
+Some other frameworks to consider:
+
+* <a href="https://starrynight.meteor.com/" target="_blank">Starry Night</a> - A testing and scaffolding framework.
+* <a href="https://github.com/AdamBrodzinski/meteor-capybara-rspec" target="_blank">Meteor Capybara Rspec</a> - A Meteor specific fork of RSpec / Capybara.
+* <a href="https://github.com/anticoders/gagarin" target="_blank">Gagarin</a> - A Mocha based framework.
+
+And of course there is <a href="https://atmospherejs.com/meteor/tinytest" target="_blank">tinytest</a> for unit testing, this <a href="https://github.com/awatson1978/meteor-cookbook/blob/master/cookbook/test-driven-development.md#tinytest" target="_blank">Meteor Cookbook link</a> has some general information and further links about tinytest.
+
+So a plethora of options... I imagine there will be some convergence at a future date.
 
 ###References
 A couple of resources that helped with putting together this post include:

@@ -118,6 +118,8 @@ The minute we add a `js` file in our test directory you'll notice some new outpu
 
 It's a good idea to `tail` the Velocity log.  I've found the log is sometimes the only place an error with the tests will show up, for instance in cases where there is a compile error in your specs.  Another quick tip; sometimes Velocity will start failing on a few tests for no apparent reason (most of the time I've found this occurs when I add a new file, new test or am switching branches)... usually hard refreshing the browser seems to clear things up.  So if a test is failing when everything should be passing, try a browser refresh.
 
+<b>Note:</b> the first time Velocity starts for a new project it will take a little while to get up and initialized, so a little patience is required.  After the initial run it should be a fair bit quicker however.
+
 For our first tests, let's deal with `page-contents-spec.js`.
 
 #####/test/jasmine/client/integration/todos/page-contents-spec.js
@@ -534,7 +536,7 @@ OK, next let's tackle `page-contents`.
   ... 
 
   it ("should include a field for entering a new task " 
-      * "with an appropriate placeholder", function() {
+      + "with an appropriate placeholder", function() {
     var input = $('.new-task input');
     expect(input.length).toEqual(1);
     expect(input.attr('placeholder')).toEqual('Type to add new tasks');    
