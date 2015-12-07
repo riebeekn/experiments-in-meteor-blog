@@ -1482,6 +1482,6 @@ So that takes us through some of the steps involved in writing tests with <a hre
 
 We've looked at basic steps such as getting Velocity up and running and have looked at one method for handling test data.
 
-In part 2 we'll finish off the rest of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> and deal with users and authentication within our tests.  We'll also have a quick look at server tests and Jasmine spies.
+In <a href="/meteor-testing-with-velocity-and-jasmine-part-2/index.html" target="_blank">part 2</a> we'll finish off the rest of the <a href="https://www.meteor.com/tutorials/blaze/creating-an-app" target="_blank">Meteor tutorial</a> and deal with users and authentication within our tests.  We'll also have a quick look at server tests and Jasmine spies.
 
 Thanks for reading and hope you enjoyed part 1!
