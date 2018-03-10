@@ -3,7 +3,7 @@ title: <site titel>
 email: <email>
 author: <author>
 description: <site description>
-baseurl: "" 
+baseurl: ""
 url: <site url>
 
 # Google analytics
@@ -15,11 +15,11 @@ disqus_shortname: <disqus shortname>
 
 # Social icons
 show_social_icons: false
-github_username: 
+github_username:
 stackoverflow_id:
-twitter_username: 
+twitter_username:
 google_plus_id:
-linkedin_username: 
+linkedin_username:
 bitcoin_url:
 paypal_url:
 flattr_button:
@@ -35,6 +35,9 @@ share_digg: false
 share_tumblr: false
 share_reddit: false
 share_stumbleupon: false
+
+# Gems
+plugins: [jekyll-paginate]
 
 # Build settings
 markdown: kramdown

@@ -2,3 +2,5 @@ _site
 .sass-cache
 _config.yml
 _notes.txt
+.jekyll-metadata
+.ruby-version
