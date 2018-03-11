@@ -5,30 +5,30 @@ summary: In this post we are going to look at how to handle file uploads to Amaz
 ---
 In this post we are going to look at how to handle file uploads to Amazon S3 in Meteor.
 
-##What we'll build
+## What we'll build
 To demonstrate file uploads we're going to build a simple photo blog similar to <a href="https://www.tumblr.com/" target="_blank">Tumblr</a>.  At the end of Part 1 we'll be able to upload and display images:
 
 <img src="../images/posts/photo-blog-part-1/app-done-part-1.png" class="img-responsive" />
 
 If you'd rather grab the source code directly rather than follow along, it's available on <a href="https://github.com/riebeekn/photo-blog/tree/part-1" target="_blank">GitHub</a>, otherwise let's get started!
 
-##Creating the app
+## Creating the app
 We need to set-up a bit of plumbing as a starting point, so let's grab a bare-bones skeleton of the application from GitHub.
 
-###Clone the Repo
+### Clone the Repo
 Note, if you aren't familiar with Git and / or don't have it installed you can download a zip of the code <a href="https://github.com/riebeekn/photo-blog/archive/part-0.zip" target="_blank">here</a>.  Otherwise we can clone the repo via the terminal.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 git clone -b part-0 https://github.com/riebeekn/photo-blog.git
 {% endhighlight %}
 
-###A quick over-view of where we're starting from
+### A quick over-view of where we're starting from
 Open the code in your text editor of choice and you'll see a pretty standard Meteor file structure.
 
 <img src="../images/posts/photo-blog-part-1/project-structure.png" class="img-responsive" />
 
-As far as packages go, we've added: 
+As far as packages go, we've added:
 
 * <a href="https://atmospherejs.com/iron/router" target="_blank">Iron Router</a> - to provide routing functionality.
 * <a href="https://atmospherejs.com/twbs/bootstrap" target="_blank">Bootstrap</a> - for some simple styling (note see this <a href="http://www.manuel-schoebel.com/blog/meteorjs-and-twitter-bootstrap---the-right-way" target="_blank">article</a> for better way of adding Bootstrap in a production application).
@@ -37,9 +37,9 @@ As far as packages go, we've added:
 
 <a href="https://atmospherejs.com/meteor/autopublish" target="_blank">Autopublish</a>  and <a href="https://atmospherejs.com/meteor/insecure" target="_blank">Insecure</a> have been removed.
 
-###Start up the app
+### Start up the app
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 cd photo-blog
 meteor
@@ -51,24 +51,24 @@ You should now see the starting point for our application when you navigate your
 
 Pretty impressive eh!  OK, not so much yet, but it'll get there.
 
-##Uploading images
+## Uploading images
 
 A photo blog isn't going to be very useful unless we can upload some images, so let's tackle that first.  After we've got a few images uploaded we'll figure out how to display them.
 
-###Updating the UI
+### Updating the UI
 
 First thing we'll do is update our UI to include a 'drop zone' where user's can drop files they want to upload.  We're going to use the <a href="https://github.com/CollectionFS" target="_blank">CollectionFS</a> package for our file upload functionality, and it happens to come with an associated <a href="https://github.com/CollectionFS/Meteor-ui-dropped-event" target="_blank">package</a> for drop zones.
 
 So let's add the package.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 meteor add raix:ui-dropped-event
 {% endhighlight %}
 
 Now we'll update `home.html`, it's pretty darn minimal at this point.
 
-#####/client/templates/home/home.html
+##### /client/templates/home/home.html
 {% highlight HTML %}
 <template name="home">
   {% raw %}{{> dropzone}}{% endraw %}
@@ -79,12 +79,12 @@ We're going to throw our drop-zone markup in a separate template so all we're do
 
 Let's create the drop-zone template.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 touch client/templates/home/dropzone.html
 {% endhighlight %}
 
-#####/client/templates/home/dropzone.html
+##### /client/templates/home/dropzone.html
 {% highlight HTML %}
 <template name="dropzone">
   <div class="row">
@@ -105,18 +105,18 @@ With the above in place, we now see our drop zone in the UI.
 
 <img src="../images/posts/photo-blog-part-1/drop-zone.png" class="img-responsive" />
 
-If you drop an image on the drop zone, however, your browser will just explicitly display the dropped image.  
+If you drop an image on the drop zone, however, your browser will just explicitly display the dropped image.
 
 <img src="../images/posts/photo-blog-part-1/initial-drop.png" class="img-responsive" />
 
 So let's hook into the `dropped` event so that we can over-ride the default behavior of the browser.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 touch client/templates/home/dropzone.js
 {% endhighlight %}
 
-#####/client/templates/home/dropzone.js
+##### /client/templates/home/dropzone.js
 {% highlight JavaScript %}
 Template.dropzone.events({
   'dropped #dropzone': function(e) {
@@ -131,12 +131,12 @@ After the above change, if we place a file in the drop zone, we can confirm via 
 
 <img src="../images/posts/photo-blog-part-1/dropped.png" class="img-responsive" />
 
-##Upload Ahoy!
+## Upload Ahoy!
 OK, so we've got our UI all set up, but now comes the tricky part, actually performing an upload.  As mentioned previously we'll be using the <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a> package to help with our file uploads.  There are a number of packages associated with CollectionFS that we'll need to add.  We've already added a package for the drop-zone UI, now we'll add the packages that will handle the uploads.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
-meteor add cfs:standard-packages cfs:gridfs cfs:s3 
+meteor add cfs:standard-packages cfs:gridfs cfs:s3
 {% endhighlight %}
 
 Let's quickly go over what each of these packages gives us.
@@ -145,7 +145,7 @@ Let's quickly go over what each of these packages gives us.
 * <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">cfs:gridfs</a> - this package is used to store file data in chunks in MongoDB.  In our case we won't actually be storing our images in our Mongo database, we'll be storing them on <a href="http://aws.amazon.com/s3/" target="_blank">Amazon S3</a>.  However CollectionFS uses either the <a href="https://atmospherejs.com/cfs/gridfs" target="_blank">GridFS</a>  or <a href="https://atmospherejs.com/cfs/filesystem" target="_blank">FileSystem</a> packages as a temporary store when uploading files to S3, so we need to include one of them and we've chosen GridFS.
 * <a href="https://atmospherejs.com/cfs/s3" target="_blank">cfs:s3</a> - this is the package that handles the uploads to S3.
 
-###Setting up S3
+### Setting up S3
 
 Sigh... OK, prepare yourself, here comes the not so fun part.  Before we get to the actual coding we need to set-up S3 to store our uploaded images.  This section is a little tedious but hopefully it won't be too painful.
 
@@ -159,7 +159,7 @@ The steps in setting up S3 are:
 
 The user we create in the last step is what we are ultimately after.  We'll be able to use the user's credentials in our application to access the S3 bucket we created.  Since we assign the user to the group we created, which in turn is assigned to the policy that grants access to our bucket, our user has access to our bucket.  Phew, if you're feeling a little confused, don't worry, me too, but everything should become clear as mud as we run thru each step.
 
-####Sign-up
+#### Sign-up
 
 First off, if you don't already have an S3 account, you'll need to sign-up for one.  Go to <a href="http://aws.amazon.com/" target="_blank">http://aws.amazon.com/</a> and click the 'Create a Free Account' button.  Follow the on screen instructions to complete the sign-up process.
 
@@ -167,7 +167,7 @@ Once you have an account set-up, sign-in to the AWS console.
 
 <img src="../images/posts/photo-blog-part-1/aws-sign-in.png" class="img-responsive" />
 
-####Creating a bucket
+#### Creating a bucket
 
 OK now that we have an account and are signed in to the AWS console it is time to create our bucket.  The first step is to access S3 from the AWS console.
 
@@ -181,7 +181,7 @@ Choose a name for the bucket and click the 'Create' button to create it.
 
 <img src="../images/posts/photo-blog-part-1/bucket-definition.png" class="img-responsive" />
 
-####Creating a policy
+#### Creating a policy
 
 With our bucket created the next step is to set-up a policy for the bucket.  This is done thru the Identity and Access Management (IAM for short) settings.
 
@@ -252,7 +252,7 @@ The final policy should look something like.
 
 Click the 'Validate Policy' button and ensure the policy you've entered is valid; if so finish creating the policy by clicking the 'Create Policy' button.
 
-####Creating a group
+#### Creating a group
 
 Our next step is to create a group.
 
@@ -274,7 +274,7 @@ In the following screen just click 'Create Group'
 
 <img src="../images/posts/photo-blog-part-1/create-group.png" class="img-responsive" />
 
-####Creating a user
+#### Creating a user
 
 OK, we're getting close to being done, I promise!  The final step is to create a user, select 'Users' from IAM and then 'Create New Users'.
 
@@ -304,27 +304,27 @@ And... that's it, all done!
 
 Phew, that was a bit of a bear, we're good to go now thou, so let's get our S3 credentials set-up within our application... then maybe we can finally get back to some coding!
 
-###Including our S3 keys in our application
+### Including our S3 keys in our application
 
-We're going to need to provide our application with access to our S3 credentials, and a good place to put them is in a `settings.json` file.  We want to make sure we don't check our S3 keys into source control however, so usually what I will do is create a `settings.json.template` file which contains place-holder values that I then replace in the actual `settings.json` file.  I find having a `.template` file helps me remember what settings I need to provide when I've been away from an application for awhile and perhaps I've deleted my local `setting.json` file.  
+We're going to need to provide our application with access to our S3 credentials, and a good place to put them is in a `settings.json` file.  We want to make sure we don't check our S3 keys into source control however, so usually what I will do is create a `settings.json.template` file which contains place-holder values that I then replace in the actual `settings.json` file.  I find having a `.template` file helps me remember what settings I need to provide when I've been away from an application for awhile and perhaps I've deleted my local `setting.json` file.
 
 Also we'll add a `.gitignore` file so that if we do add our application to source control at one point `settings.json` won't be included.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 touch .gitignore
 touch settings.json.template
 cp settings.json.template settings.json
 {% endhighlight %}
 
-#####/.gitignore
+##### /.gitignore
 {% highlight JavaScript %}
 settings.json
 {% endhighlight %}
 
 Here we're just telling Git to ignore the settings.json file and not include it in our source control repository.
 
-#####/settings.json.template
+##### /settings.json.template
 {% highlight JavaScript %}
 {
   "AWSAccessKeyId" : "<AWS KEY>",
@@ -337,7 +337,7 @@ With `settings.json.template` we're specifying what our `settings.json` file sho
 
 OK, now we need to fill in our actual `settings.json` file, this is where the credentials.csv that we downloaded when creating our user in IAM comes into play.
 
-#####/settings.json
+##### /settings.json
 {% highlight JavaScript %}
 {
   "AWSAccessKeyId" : "Put the access key id from credentials.csv here",
@@ -348,7 +348,7 @@ OK, now we need to fill in our actual `settings.json` file, this is where the cr
 
 So your `settings.json` file should look something like:
 
-#####/settings.json
+##### /settings.json
 {% highlight JavaScript %}
 {
   "AWSAccessKeyId" : "ABCDEFGHIJKLMNOPQRST",
@@ -359,27 +359,27 @@ So your `settings.json` file should look something like:
 
 In order for Meteor to pick up our settings we need to stop the server and then restart it with the `--settings` option specified.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 meteor --settings settings.json
 {% endhighlight %}
 
-###Adding the code to do the actual image upload
+### Adding the code to do the actual image upload
 OK, so with all that out of the way we're ready to get back to some coding (finally)!  The first thing we'll need is a <a href="http://docs.meteor.com/#/full/mongo_collection" target="_blank">Collection</a> to store information about our images.  So let's get that set-up.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 mkdir lib/collections
 touch lib/collections/images.js
 {% endhighlight %}
 
-#####/lib/collections/images.js
+##### /lib/collections/images.js
 {% highlight JavaScript %}
 if (Meteor.isServer) {
   var imageStore = new FS.Store.S3("images", {
     /* REQUIRED */
-    accessKeyId: Meteor.settings.AWSAccessKeyId, 
-    secretAccessKey: Meteor.settings.AWSSecretAccessKey, 
+    accessKeyId: Meteor.settings.AWSAccessKeyId,
+    secretAccessKey: Meteor.settings.AWSSecretAccessKey,
     bucket: Meteor.settings.AWSBucket
   });
 
@@ -417,11 +417,11 @@ Images.allow({
 });
 {% endhighlight %}
 
-So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for CollectionFS to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.  
+So that is a bit of a code dump, let's take it from the top down.  First we have the `if (Meteor.isServer)...` block which defines the server version of our Collection.  Here we are setting up the 'store' for CollectionFS to use.  This is what determines where images are actually stored when they get uploaded.  In our case we're setting up an S3 store, and this is where we pass in our S3 credentials.
 
 *Note: depending on the region you selected for your S3 bucket, you may need to pass in the region value to the S3 store.  If you get an error such as 'Hostname/IP doesn't match certificate's altnames', try adding a region value:*
 
-#####/lib/collections/image.js
+##### /lib/collections/image.js
 {% highlight JavaScript %}
 if (Meteor.isServer) {
   var imageStore = new FS.Store.S3("images", {
@@ -430,8 +430,8 @@ if (Meteor.isServer) {
     */
 
     /* REQUIRED */
-    accessKeyId: Meteor.settings.AWSAccessKeyId, 
-    secretAccessKey: Meteor.settings.AWSSecretAccessKey, 
+    accessKeyId: Meteor.settings.AWSAccessKeyId,
+    secretAccessKey: Meteor.settings.AWSSecretAccessKey,
     bucket: Meteor.settings.AWSBucket
   });
   ...
@@ -442,7 +442,7 @@ After setting up our image store, we then define our collection, which we are na
 
 The `if (Meteor.isClient)...` block defines the client version of the Collection.  The main difference being that we don't set our S3 keys.  This is a key point, we don't want to make our keys available on the client, if we did someone could grab them using the browser console, for instance if we defined `settings.json` like so:
 
-#####/settings.json
+##### /settings.json
 {% highlight JavaScript %}
 {
   "public": {
@@ -453,7 +453,7 @@ The `if (Meteor.isClient)...` block defines the client version of the Collection
 }
 {% endhighlight %}
 
-We could then change `images.js` to have a single collection definition (i.e. just the `isServer` version).  Less code, great!  
+We could then change `images.js` to have a single collection definition (i.e. just the `isServer` version).  Less code, great!
 
 Except then someone could easily steal our S3 credentials:
 
@@ -465,13 +465,13 @@ The `Images.allow...` code block specifies the allow rules on the collection.  F
 
 OK, so we've got our collection all set-up, now we just need to hook it up in our client code.  We'll alter our `dropzone.js` file so that it does something other than print out a console message.
 
-#####/client/templates/home/dropzone.js
+##### /client/templates/home/dropzone.js
 {% highlight JavaScript %}
 Template.dropzone.events({
   'dropped #dropzone': function(e) {
       FS.Utility.eachFile(e, function(file) {
         var newFile = new FS.File(file);
-        
+
         Images.insert(newFile, function (error, fileObj) {
           if (error) {
             toastr.error("Upload failed... please try again.");
@@ -500,19 +500,19 @@ If you attempt to upload an invalid file type, our toast message will let us kno
 
 So that's all good, but we're probably not going to want to view our images via the S3 management console, so let's get onto displaying our images.
 
-##Displaying images
+## Displaying images
 
-###Setting up a publication and subscribing to it
+### Setting up a publication and subscribing to it
 
 First thing we need to do is create a <a href="http://docs.meteor.com/#/full/meteor_publish" target="_blank">publication</a> for our images that we can subscribe to.  Let's set up the publication.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 mkdir server
 touch server/publications.js
 {% endhighlight %}
 
-#####/server/publications.js
+##### /server/publications.js
 {% highlight JavaScript %}
 Meteor.publish('images', function(limit) {
   check(limit, Number);
@@ -527,28 +527,28 @@ Nothing complicated going on here, first we check that the limit parameter is a 
 
 OK now let's subscribe to our publication.  Instead of subscribing to our data in the `router`, we'll do so in our template... this will make implementing the infinite scrolling a snap.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 touch client/templates/home/home.js
 {% endhighlight %}
 
 We'll be making use of a <a href="http://docs.meteor.com/#/full/reactivevar" target="_blank">reactive variable</a> in `home.js` so we'll need to add the reactive var package.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 meteor add reactive-var
 {% endhighlight %}
 
 Now we'll add the code for `home.js`, note that you'll get an error in the browser console until we update `settings.json` in the next step.
 
-#####/client/templates/home/home.js
+##### /client/templates/home/home.js
 {% highlight JavaScript %}
 Template.home.created = function() {
   var self = this;
 
   self.limit = new ReactiveVar;
   self.limit.set(parseInt(Meteor.settings.public.recordsPerPage));
-  
+
   Tracker.autorun(function() {
     Meteor.subscribe('images', self.limit.get());
   });
@@ -571,7 +571,7 @@ Template.home.helpers({
 });
 
 var incrementLimit = function(templateInstance) {
-  var newLimit = templateInstance.limit.get() + 
+  var newLimit = templateInstance.limit.get() +
     parseInt(Meteor.settings.public.recordsPerPage);
   templateInstance.limit.set(newLimit);
 }
@@ -585,7 +585,7 @@ Finally the `images` helper simply makes our image records available to our HTML
 
 OK, so we need to update `settings.json` to include our `recordsPerPage` value.  Since we need access to this value on the client, we need to specify it as public... and while we're at it, although unnecessary we'll explicitly put our AWS values in a private block.  By default settings values are private (i.e. only available on the server) but I think it's a little cleaner to explicitly specify a private block when mixing private and public settings.
 
-#####/settings.json.template and /settings.json
+##### /settings.json.template and /settings.json
 {% highlight JavaScript %}
 {
   "public": {
@@ -603,13 +603,13 @@ Obviously in `settings.json` you'll be specifying your real AWS credentials as b
 
 The change to `settings.json` requires a corresponding change to our images collection.
 
-#####/lib/collections/images.js
+##### /lib/collections/images.js
 {% highlight JavaScript %}
 if (Meteor.isServer) {
   var imageStore = new FS.Store.S3("images", {
     /* REQUIRED */
-    accessKeyId: Meteor.settings.private.AWSAccessKeyId, 
-    secretAccessKey: Meteor.settings.private.AWSSecretAccessKey, 
+    accessKeyId: Meteor.settings.private.AWSAccessKeyId,
+    secretAccessKey: Meteor.settings.private.AWSSecretAccessKey,
     bucket: Meteor.settings.private.AWSBucket
   });
 
@@ -620,11 +620,11 @@ if (Meteor.isServer) {
 
 All we've done here is update the `Meteor.settings` values to include `private` in the path.
 
-###Updating the UI
+### Updating the UI
 
 Now that the publication and subscription are set-up, we just need to hook up the UI, so first off let's alter our `home` template, we'll add a call into a separate template that will render the actual images.
 
-#####/client/templates/home/home.html
+##### /client/templates/home/home.html
 {% highlight HTML %}
 <template name="home">
   {% raw %}{{> dropzone}}
@@ -639,12 +639,12 @@ OK, nothing unusual there, we're just iterating over the images made available b
 
 Let's create the `image` template.
 
-#####Terminal
+##### Terminal
 {% highlight Bash %}
 touch client/templates/home/image.html
 {% endhighlight %}
 
-#####/client/templates/home/image.html
+##### /client/templates/home/image.html
 {% highlight HTML %}
 <template name="image">
   <div class="row">
@@ -665,7 +665,7 @@ Assuming we've uploaded some images, they should be displaying and we are all go
 
 Hmm, maybe not, the browser console provides a good hint as to what is going on however.  Looks like a permissions issue.  A quick change to our allow rules will fix that up.
 
-#####/lib/collections/images.js
+##### /lib/collections/images.js
 {% highlight JavaScript %}
 // existing code...
 
@@ -681,10 +681,10 @@ And with that small change, we're up and running... and with more than 5 images 
 
 <img src="../images/posts/photo-blog-part-1/done.gif" class="img-responsive" />
 
-##Summary
-So that's it for part 1, we've covered how to upload and display files from <a href="http://aws.amazon.com/s3/" target="_blank">S3</a> using the <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a> package.
+## Summary
+So that's it for  part 1, we've covered how to upload and display files from <a href="http://aws.amazon.com/s3/" target="_blank">S3</a> using the <a href="https://github.com/CollectionFS/Meteor-CollectionFS" target="_blank">CollectionFS</a> package.
 
-In part 2 we'll: 
+In part 2 we'll:
 
 * Add user's, associating and limiting uploads to signed in users.
 * Add the ability for user's to remove images they've uploaded.
